@@ -57,7 +57,7 @@ begintime = time.time()
 for f in file_list:
     if f[0:3] == 'sh6' or f[0:8] == 'sh999999': #处理沪市sh6开头和sh999999(上证指数)文件，否则跳过此次循环
         day2csv(sourcesh, f, target)
-        #print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
     else:
         continue
 print('沪市处理完毕，用时' + str(time.time()-begintime))
@@ -68,7 +68,7 @@ begintime = time.time()
 for f in file_list:
     if f[0:4] == 'sz00' or f[0:4] == 'sz30':    #处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         day2csv(sourcesz, f, target)
-        #print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
     else:
         continue
 print('深市处理完毕，用时' + str(time.time()-begintime))
