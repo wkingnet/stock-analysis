@@ -42,11 +42,13 @@ target = 'd:/日线数据'
 
 #判断目录和文件是否存在，存在则直接删除
 if os.path.exists(target):
-    for root, dirs, files in os.walk(target, topdown=False):
-        for name in files:
-            os.remove(os.path.join(root,name))
-        for name in dirs:
-            os.rmdir(os.path.join(root,name))
+    choose = input("文件已存在，是否覆盖？y/n")
+    if choose == 'y':
+        for root, dirs, files in os.walk(target, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root,name))
+            for name in dirs:
+                os.rmdir(os.path.join(root,name))
 else:
     os.mkdir(target)
 
