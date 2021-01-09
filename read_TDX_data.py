@@ -3,6 +3,7 @@
 import os
 import time
 from struct import unpack
+from decimal import Decimal  #用于浮点数四舍五入
  
 source = 'd:/stock/通达信'   #指定通达信目录
 target = 'd:/日线数据'  #指定数据保存目录
@@ -21,16 +22,19 @@ def day2csv(source_dir, file_name, target_dir):
     begin = 0
     end = 32
     header = str('date') + ', ' + str('open') + ', ' + str('high') + ', ' + str('low') + ', ' \
-        + str('close') + ', ' + str('amount') + ', ' + str('vol') + ', ' + str('str07') + '\n'
+        + str('close') + ', ' + str('amount') + ', ' + str('vol') +  ', ' \
+        + str('单位元，成交量股') + '\n'
     target_file.write(header)
     for i in range(rec_count):
         # 将字节流转换成Python数据格式
         # I: unsigned int
         # f: float
-        a = unpack('IIIIIfII', buf[begin:end])
+        #a[5]浮点类型的成交金额，使用decimal类四舍五入为整数
+        a = unpack('IIIIIfII', buf[begin:end])       
         line = str(a[0]) + ', ' + str(a[1] / 100.0) + ', ' + str(a[2] / 100.0) + ', ' \
-            + str(a[3] / 100.0) + ', ' + str(a[4] / 100.0) + ', ' + str(a[5] / 10.0) + ', ' \
-            + str(a[6]) + ', ' + str(a[7]) + ', ' + '\n'
+            + str(a[3] / 100.0) + ', ' + str(a[4] / 100.0) + ', ' \
+            + str(Decimal(a[5]).quantize(Decimal("1."), rounding = "ROUND_HALF_UP")) + ', ' \
+            + str(a[6]) + '\n'
         target_file.write(line)
         begin += 32
         end += 32
@@ -38,7 +42,7 @@ def day2csv(source_dir, file_name, target_dir):
 
 #判断目录和文件是否存在，存在则直接删除
 if os.path.exists(target):
-    choose = input("文件已存在，是否删除？ y/n ")
+    choose = input("文件已存在，是否删除? (y/n) :")
     if choose == 'y':
         for root, dirs, files in os.walk(target, topdown=False):
             for name in files:
