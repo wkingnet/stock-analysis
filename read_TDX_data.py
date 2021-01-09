@@ -48,7 +48,6 @@ if os.path.exists(target):
 else:
     os.mkdir(target)
 
-
 #处理沪市股票
 file_list = os.listdir(source + '/vipdoc/sh/lday')
 begintime = time.time()
