@@ -7,7 +7,9 @@ from decimal import Decimal  #用于浮点数四舍五入
  
 source = 'd:/stock/通达信'   #指定通达信目录
 target = 'd:/日线数据'  #指定数据保存目录
+target_index = 'd:/日线数据/指数'  #指定数据保存目录
 debug = 1   #是否开启调试日志输出  1开 0关
+used_time = {}  #创建一个计时字典
 
 # debug输出函数
 def user_debug(print_str,print_value):
@@ -82,7 +84,7 @@ def day2csv(source_dir, file_name, target_dir):
     target_file.close()
 
 #判断目录和文件是否存在，存在则直接删除
-if os.path.exists(target):
+if os.path.exists(target) or os.path.exists(target_index):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
         for root, dirs, files in os.walk(target, topdown=False):
@@ -90,27 +92,58 @@ if os.path.exists(target):
                 os.remove(os.path.join(root,name))
             for name in dirs:
                 os.rmdir(os.path.join(root,name))
+        for root, dirs, files in os.walk(target_index, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root,name))
+            for name in dirs:
+                os.rmdir(os.path.join(root,name))
+        try:
+            os.mkdir(target)
+        except FileExistsError:
+            pass
+        try:
+            os.mkdir(target_index)
+        except  FileExistsError:
+            pass
 else:
     os.mkdir(target)
+    os.mkdir(target_index)
 
 #处理沪市股票
 file_list = os.listdir(source + '/vipdoc/sh/lday')
-begintime = time.time()
+used_time['sh_begintime'] = time.time()
 for f in file_list:
-    if f[0:3] == 'sh6' or f[0:8] == 'sh999999': #处理沪市sh6开头和sh999999(上证指数)文件，否则跳过此次循环
+    #处理沪市sh6开头和sh000300(沪深300指数)文件，否则跳过此次循环
+    if f[0:3] == 'sh6' or f[0:8] == 'sh000300':
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         day2csv(source + '/vipdoc/sh/lday', f, target)
     else:
         continue
-print('沪市处理完毕，用时' + str(int(time.time()-begintime)) + '秒')
+used_time['sh_endtime'] = time.time()
 
 #处理深市股票
 file_list = os.listdir(source + '/vipdoc/sz/lday')
-begintime = time.time()
+used_time['sz_begintime'] = time.time()
 for f in file_list:
     if f[0:4] == 'sz00' or f[0:4] == 'sz30':    #处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         day2csv(source + '/vipdoc/sz/lday', f, target)
     else:
         continue
-print('深市处理完毕，用时' + str(int(time.time()-begintime)) + '秒')
+used_time['sz_endtime'] = time.time()
+
+#处理指数文件
+file_list = os.listdir(source + '/vipdoc/sh/lday')
+used_time['index_begintime'] = time.time()
+for f in file_list:
+    #处理sh999999（上证指数文件）和sh000300(沪深300指数)文件，否则跳过此次循环
+    if f[0:8] == 'sh999999' or f[0:8] == 'sh000300':
+        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        day2csv(source + '/vipdoc/sh/lday', f, target_index)
+    else:
+        continue
+used_time['index_endtime'] = time.time()
+
+print('沪市处理完毕，用时' + str(int(used_time['sh_endtime']-used_time['sh_begintime'])) + '秒')
+print('深市处理完毕，用时' + str(int(used_time['sz_endtime']-used_time['sz_begintime'])) + '秒')
+print('指数文件处理完毕，用时' + str(int(used_time['index_endtime']-used_time['index_begintime'])) + '秒')
