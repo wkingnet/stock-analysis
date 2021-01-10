@@ -1,5 +1,14 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
+"""
+在网络读取通达信代码上修改加工，增加、完善了一些功能
+1、增加了读取深市股票功能。
+2、增加了在已有数据的基础上追加最新数据，而非完全删除重灌。
+3、增加了读取上证指数、沪深300指数功能。
+4、过滤了无关的债券指数、板块指数等，只读取沪市、深市A股股票。
+
+作者：wking [http://wkings.net]
+"""
 import os
 import time
 from struct import unpack
