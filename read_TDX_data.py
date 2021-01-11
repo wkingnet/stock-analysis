@@ -7,6 +7,8 @@
 3、增加了读取上证指数、沪深300指数功能。
 4、过滤了无关的债券指数、板块指数等，只读取沪市、深市A股股票。
 
+数据单位：金额（元），成交量（股）
+
 作者：wking [http://wkings.net]
 """
 import os
@@ -19,11 +21,11 @@ debug = 1   #是否开启调试日志输出  1开 0关
 source = 'd:/stock/通达信'   #指定通达信目录
 target = 'd:/日线数据'  #指定数据保存目录
 target_index = 'd:/日线数据/指数'  #指定数据保存目录
-index_list = [
+index_list = [  # 需要转换的指数文件。通达信按998查看重要指数
     'sh999999.day',  # 上证指数
     'sh000300.day',  # 沪深300
     'sz399001.day',  # 深成指
-]  #通达信按998查看重要指数
+]
 
 #配置部分结束
 
@@ -57,8 +59,7 @@ def day2csv(source_dir, file_name, target_dir):
         #目标文件不存在。写入表头行。begin从0开始转换
         target_file = open(target_path, 'w', encoding="utf-8")  #以覆盖写模式打开文件
         header = str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
-        + str('close') + ',' + str('amount') + ',' + str('vol') +  ',' \
-        + str('单位元、成交量股')
+        + str('close') + ',' + str('amount') + ',' + str('vol')
         target_file.write(header)
         begin = 0
         end = begin + 32
