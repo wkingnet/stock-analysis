@@ -13,11 +13,21 @@ import os
 import time
 from struct import unpack
 from decimal import Decimal  #用于浮点数四舍五入
- 
+
+#配置部分开始
+debug = 1   #是否开启调试日志输出  1开 0关
 source = 'd:/stock/通达信'   #指定通达信目录
 target = 'd:/日线数据'  #指定数据保存目录
 target_index = 'd:/日线数据/指数'  #指定数据保存目录
-debug = 1   #是否开启调试日志输出  1开 0关
+index_list = [
+    'sh999999.day',  # 上证指数
+    'sh000300.day',  # 沪深300
+    'sz399001.day',  # 深成指
+]  #通达信按998查看重要指数
+
+#配置部分结束
+
+# 变量初始化
 used_time = {}  #创建一个计时字典
 
 # debug输出函数
@@ -46,8 +56,8 @@ def day2csv(source_dir, file_name, target_dir):
     if not os.path.isfile(target_path):
         #目标文件不存在。写入表头行。begin从0开始转换
         target_file = open(target_path, 'w', encoding="utf-8")  #以覆盖写模式打开文件
-        header = str('date') + ', ' + str('open') + ', ' + str('high') + ', ' + str('low') + ', ' \
-        + str('close') + ', ' + str('amount') + ', ' + str('vol') +  ', ' \
+        header = str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
+        + str('close') + ',' + str('amount') + ',' + str('vol') +  ',' \
         + str('单位元、成交量股')
         target_file.write(header)
         begin = 0
@@ -65,7 +75,7 @@ def day2csv(source_dir, file_name, target_dir):
         target_file.seek(0,0)  #文件指针移到文件头
         user_debug('移动指针到开头', target_file.seek(0,0))
         row_number = len(target_file.readlines())  #获得文件行数
-        user_debug('文件总行数', row_number)
+        user_debug('目标文件行数', row_number)
         target_file.seek(0,2)  #文件指针移到文件尾
         user_debug('移动指针到末尾', target_file.seek(0,2))
 
@@ -83,9 +93,9 @@ def day2csv(source_dir, file_name, target_dir):
         # f: float
         #a[5]浮点类型的成交金额，使用decimal类四舍五入为整数
         a = unpack('IIIIIfII', buf[begin:end])       
-        line = '\n' + str(a[0]) + ', ' + str(a[1] / 100.0) + ', ' + str(a[2] / 100.0) + ', ' \
-            + str(a[3] / 100.0) + ', ' + str(a[4] / 100.0) + ', ' \
-            + str(Decimal(a[5]).quantize(Decimal("1."), rounding = "ROUND_HALF_UP")) + ', ' \
+        line = '\n' + str(a[0]) + ',' + str(a[1] / 100.0) + ',' + str(a[2] / 100.0) + ',' \
+            + str(a[3] / 100.0) + ',' + str(a[4] / 100.0) + ',' \
+            + str(Decimal(a[5]).quantize(Decimal("1."), rounding = "ROUND_HALF_UP")) + ',' \
             + str(a[6])
         target_file.write(line)
         begin += 32
@@ -122,12 +132,10 @@ else:
 file_list = os.listdir(source + '/vipdoc/sh/lday')
 used_time['sh_begintime'] = time.time()
 for f in file_list:
-    #处理沪市sh6开头和sh000300(沪深300指数)文件，否则跳过此次循环
-    if f[0:3] == 'sh6' or f[0:8] == 'sh000300':
+    #处理沪市sh6开头文件，否则跳过此次循环
+    if f[0:3] == 'sh6':
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         day2csv(source + '/vipdoc/sh/lday', f, target)
-    else:
-        continue
 used_time['sh_endtime'] = time.time()
 
 #处理深市股票
@@ -137,20 +145,18 @@ for f in file_list:
     if f[0:4] == 'sz00' or f[0:4] == 'sz30':    #处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         day2csv(source + '/vipdoc/sz/lday', f, target)
-    else:
-        continue
 used_time['sz_endtime'] = time.time()
 
 #处理指数文件
-file_list = os.listdir(source + '/vipdoc/sh/lday')
 used_time['index_begintime'] = time.time()
-for f in file_list:
-    #处理sh999999（上证指数文件）和sh000300(沪深300指数)文件，否则跳过此次循环
-    if f[0:8] == 'sh999999' or f[0:8] == 'sh000300':
-        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        day2csv(source + '/vipdoc/sh/lday', f, target_index)
-    else:
-        continue
+
+for i in index_list:
+    print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
+    if 'sh' in i:
+        day2csv(source + '/vipdoc/sh/lday', i, target_index)
+    elif 'sz' in i:
+        day2csv(source + '/vipdoc/sz/lday', i, target_index)
+
 used_time['index_endtime'] = time.time()
 
 print('沪市处理完毕，用时' + str(int(used_time['sh_endtime']-used_time['sh_begintime'])) + '秒')
