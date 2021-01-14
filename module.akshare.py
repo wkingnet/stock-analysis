@@ -59,15 +59,15 @@ def download_stockdata():
         elif i[0:1] == '0' or i[0:1] == '3':
             ii = 'sz' + i
         
-        process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
-        try:
-            df = akshare.stock_zh_a_daily(symbol=ii, start_date="19901219", end_date="20210113", adjust="qfq")
-            csv_path = ucfg.csv_path + os.sep + i + '.csv'
-            df.to_csv(csv_path)
-        except:
-            print(process_info + ' >>>wrong<<<')
-        else:
-            print(process_info + ' done')
+    process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
+    try:
+        df = akshare.stock_zh_a_daily(symbol=ii, start_date="19901219", end_date="20210113", adjust="qfq")
+        csv_file = ucfg.csv_path + os.sep + i + '.csv'
+        df.to_csv(csv_file)
+    except:
+        print(process_info + ' >>>wrong<<<')
+    else:
+        print(process_info + ' done')
     
     print('处理完毕')
 
