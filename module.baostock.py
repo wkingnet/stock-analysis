@@ -17,6 +17,10 @@ import akshare
 
 import user_config as ucfg
 
+#变量定义
+starttime_str = time.strftime("%H:%M:%S", time.localtime())
+starttime_tick = time.time()
+
 
 # 获取沪深 A 股股票代码和简称数据
 def download_stocklist():
@@ -27,18 +31,50 @@ def download_stocklist():
     stocklist = df['code'].tolist()
     return stocklist
 
+# 切片股票列表stocklist，指定开始股票和结束股票
+def update_stocklist(stocklist, start_num, end_num):
+    """
+
+
+    Parameters
+    ----------
+    start_num : str
+    从哪只股票开始处理
+
+    end_num : str
+    处理到哪只股票为止
+
+    Returns
+    -------
+    处理后的股票代码列表
+
+    """
+    for i in stocklist:
+        if i == start_num:
+            start_index = stocklist.index(i)
+            stocklist = stocklist[start_index:]
+        if i == end_num:
+            end_index = stocklist.index(i)
+            stocklist = stocklist[:end_index]
+
+    return stocklist
+
+
 # 主程序开始
-starttime_str = time.strftime("%H:%M:%S", time.localtime())
-starttime_tick = time.time()
+
+# 下载最新股票代码列表
+stocklist = download_stocklist()
+
+#定义要下载的股票区间
+start_stock_num = '300861'  # 留空则从头开始处理 不需要输入sh/sz
+end_stock_num = ''  # 留空则处理到末尾
+stocklist = update_stocklist(stocklist, start_stock_num, end_stock_num)
 
 #### 登陆系统 ####
 lg = baostock.login()
 # 显示登陆返回信息
 print('login respond error_code:' + lg.error_code)
 print('login respond  error_msg:' + lg.error_msg)
-
-# 下载最新股票代码列表
-stocklist = download_stocklist()
 
 for i in stocklist:
     if i[0:1] == '6':
