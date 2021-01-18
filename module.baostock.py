@@ -66,7 +66,7 @@ def update_stocklist(stocklist, start_num, end_num):
 stocklist = download_stocklist()
 
 #定义要下载的股票区间
-start_stock_num = '300861'  # 留空则从头开始处理 不需要输入sh/sz
+start_stock_num = ''  # 留空则从头开始处理 不需要输入sh/sz
 end_stock_num = ''  # 留空则处理到末尾
 stocklist = update_stocklist(stocklist, start_stock_num, end_stock_num)
 
@@ -98,10 +98,8 @@ for i in stocklist:
         while (rs.error_code == '0') & rs.next():
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
-
         result = pd.DataFrame(data_list, columns=rs.fields)
-        print(process_info + ' 完成 开始时间[' + starttime_str + '] 已用'
-              + str(round(time.time() - starttime_tick)) + '秒')
+        print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
         csv_file = ucfg.csv_path + os.sep + i + '.csv'
         result.to_csv(csv_file, index=True)
 
