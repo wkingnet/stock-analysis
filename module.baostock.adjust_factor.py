@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 """
-使用baostock库的API接口获取除权除息信息数据（预披露、预案、正式都已通过）
+使用baostock库的API接口获取复权因子信息数据
 baostock.com/baostock/index.php/除权除息信息
 作者：wking [http://wkings.net]
 """
@@ -22,6 +22,7 @@ end_stock_num = ''  # 留空则处理到末尾
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
 thisyear = time.strftime("%Y", time.localtime())
+today = time.strftime("%Y-%m-%d", time.localtime())
 
 
 # 函数部分
@@ -80,20 +81,20 @@ def update_stocklist(stocklist, start_num, end_num):
 
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
-if os.path.exists(ucfg.dividend_dir):
+if os.path.exists(ucfg.adjust_factor_dir):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
-        for root, dirs, files in os.walk(ucfg.dividend_dir, topdown=False):
+        for root, dirs, files in os.walk(ucfg.adjust_factor_dir, topdown=False):
             for name in files:
                 os.remove(os.path.join(root,name))
             for name in dirs:
                 os.rmdir(os.path.join(root,name))
         try:
-            os.mkdir(ucfg.dividend_dir)
+            os.mkdir(ucfg.adjust_factor_dir)
         except FileExistsError:
             pass
 else:
-    os.mkdir(ucfg.dividend_dir)
+    os.mkdir(ucfg.adjust_factor_dir)
 
 #### 登陆系统 ####
 lg = baostock.login()
@@ -113,23 +114,14 @@ for i in stocklist:  # 循环股票列表stocklist
 
     process_info = f'[{str(stocklist.index(i) + 1)}/{str(len(stocklist))}]{i}'
     rs_list = []
-    for year in range(1990, int(thisyear)+1):
-        try:
-            rs_dividend_temp = baostock.query_dividend_data(code=ii, year=year, yearType="report")
-        except:
-            print(f'{process_info} {year} >>>wrong<<<')
-            print('query_history_k_data_plus respond error_code:' + rs_dividend_temp.error_code)
-            print('query_history_k_data_plus respond  error_msg:' + rs_dividend_temp.error_msg)
-        else:
-            while (rs_dividend_temp.error_code == '0') & rs_dividend_temp.next():
-                rs_list.append(rs_dividend_temp.get_row_data())
-            result_dividend = pd.DataFrame(rs_list, columns=rs_dividend_temp.fields)
-            result_dividend['code'] = i  # 将code列保存的字符串sh.600000样式股票代码，替换为整数型的600000
-            print(f'{process_info} 处理中 {year}年完成 已用{str(round(time.time() - starttime_tick, 2))}秒 '
-                  f'开始时间[{starttime_str}]')
+    rs_factor = baostock.query_adjust_factor(code=ii, start_date="1990-01-01", end_date=today)
+    while (rs_factor.error_code == '0') & rs_factor.next():
+        rs_list.append(rs_factor.get_row_data())
+    result_factor = pd.DataFrame(rs_list, columns=rs_factor.fields)
+    result_factor['code'] = i  # 将code列保存的字符串sh.600000样式股票代码，替换为整数型的600000
     print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-    csv_file = ucfg.dividend_dir + os.sep + i + '.csv'
-    result_dividend.to_csv(csv_file, encoding="gbk", index=False)
+    csv_file = ucfg.adjust_factor_dir + os.sep + i + '.csv'
+    result_factor.to_csv(csv_file, encoding="gbk", index=False)
 
 #### 登出系统 ####
 baostock.logout()
