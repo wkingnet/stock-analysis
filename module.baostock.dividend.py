@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 """
 使用baostock库的API接口获取除权除息信息数据（预披露、预案、正式都已通过）
-
+baostock.com/baostock/index.php/除权除息信息
 作者：wking [http://wkings.net]
 """
 
