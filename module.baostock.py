@@ -10,6 +10,7 @@
 
 import os
 import time
+import datetime
 import pandas as pd
 
 import baostock
@@ -19,6 +20,9 @@ import user_config as ucfg
 #变量定义
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
+#定义要下载的股票区间
+start_stock_num = ''  # 留空则从沪市第一只股票开始处理 不需要输入sh/sz
+end_stock_num = ''  # 留空则处理到深市最后一只股票
 
 
 # 获取沪深 A 股股票代码和简称数据
@@ -75,20 +79,15 @@ def update_stocklist(stocklist, start_num, end_num):
 
 
 # 主程序开始
-
-# 下载最新股票代码列表
-stocklist = download_stocklist()
-
-#定义要下载的股票区间
-start_stock_num = ''  # 留空则从头开始处理 不需要输入sh/sz
-end_stock_num = ''  # 留空则处理到末尾
-stocklist = update_stocklist(stocklist, start_stock_num, end_stock_num)
-
 #### 登陆系统 ####
 lg = baostock.login()
 # 显示登陆返回信息
 print('login respond error_code:' + lg.error_code)
 print('login respond  error_msg:' + lg.error_msg)
+
+# 下载最新股票代码列表
+stocklist = download_stocklist()
+stocklist = update_stocklist(stocklist, start_stock_num, end_stock_num)
 
 for i in stocklist:
     if i[0:1] == '6':
