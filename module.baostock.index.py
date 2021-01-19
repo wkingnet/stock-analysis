@@ -123,3 +123,29 @@ for i in ucfg.baostock['index_list']:
 
 #### 登出系统 ####
 baostock.logout()
+
+# 给上证指数文件加上【全部A股股价平均数值列】
+df_index = pd.read_csv(ucfg.baostock['csv_index'] + '/sh.000001.csv', usecols=['date'])  # 读取上证指数文件，只读取日期列
+file_list = os.listdir(ucfg.baostock['csv_day'])  # 日线数据列表
+
+index_row_num = 0
+while index_row_num < df_index.shape[0]:  # 循环df_index全部行，也就是A股全部交易天数
+    day_avg = 0  # 当天所有股票开高低收平均值相加的平均值
+    day_trade_num = 0  # 当天交易的股票的数量
+    for file in file_list:  # 所有股票循环一次
+        index_row_date = df_index.iat[index_row_num, 0]  # 读取指数文件当前行保存的日期
+        # 读取file，提取数据。以日期为索引
+        df_csvday = pd.read_csv(ucfg.baostock['csv_day'] + os.sep + file, index_col='date',
+                                usecols=['date', 'open', 'high', 'low', 'close', 'tradestatus'])
+        if index_row_date in df_csvday.index:  # 如果当前指数日期在CSVDAY的索引列表里，表示此股票当日有数据
+            if df_csvday.at[index_row_date, 'tradestatus'] == 1:  # tradestatus==1表示正常交易状态
+                day_trade_num = day_trade_num + 1
+                open = df_csvday.at[index_row_date, 'open']
+                high = df_csvday.at[index_row_date, 'high']
+                low = df_csvday.at[index_row_date, 'low']
+                close = df_csvday.at[index_row_date, 'close']
+                stock_avg = (open + high + low + close) / 4  #当日该股票开高低收的平均值，保留2位小数
+                day_avg = day_avg + stock_avg
+    if day_avg != 0 and day_trade_num != 0:
+        day_avg = round(day_avg / day_trade_num, 2)  # 计算当天所有股票的平均值
+    print(f'[{index_row_num + 1}/{df_index.shape[0]}] {index_row_date}')
