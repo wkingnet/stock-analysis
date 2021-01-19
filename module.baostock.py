@@ -13,7 +13,6 @@ import time
 import pandas as pd
 
 import baostock
-import akshare
 
 import user_config as ucfg
 
@@ -25,10 +24,25 @@ starttime_tick = time.time()
 # 获取沪深 A 股股票代码和简称数据
 def download_stocklist():
     """
-    调用akshare库获取当前最新A股股票列表，返回列表类型的代码
+    调用baostock库获取当前最新A股股票列表，返回列表类型的代码
     """
-    df = pd.DataFrame(akshare.stock_info_a_code_name())
-    stocklist = df['code'].tolist()
+    data_list = []
+    stocklist = []
+
+    # 方法说明：获取指定交易日期所有股票列表。通过API接口获取证券代码及股票交易状态信息，与日K线数据同时更新。
+    # 可以通过参数‘某交易日’获取数据（包括：A股、指数），提供2006 - 今数据。
+    # 返回类型：pandas的DataFrame类型。
+    # 由于当天股票列表需等16点以后才生成，因此用昨天的股票列表。
+    rs = baostock.query_all_stock(day=(datetime.date.today() + datetime.timedelta(-1)))
+
+    while (rs.error_code == '0') & rs.next():
+        # 获取一条记录，将记录合并在一起
+        data_list.append(rs.get_row_data())
+    # print(data_list)
+    for data in data_list:  # 筛选获得的数据列表，只取股票列表，剔除指数
+        if data[0][:4] == 'sh.6' or data[0][:5] == 'sz.00' or data[0][:5] == 'sz.30':
+            stocklist.append(data[0][3:])
+    print(f'股票列表获取完成，共有{len(stocklist)}只股票')
     return stocklist
 
 # 切片股票列表stocklist，指定开始股票和结束股票

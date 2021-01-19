@@ -81,20 +81,20 @@ def update_stocklist(stocklist, start_num, end_num):
 
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
-if os.path.exists(ucfg.adjust_factor_dir):
+if os.path.exists(ucfg.baostock['adjust_factor_dir']):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
-        for root, dirs, files in os.walk(ucfg.adjust_factor_dir, topdown=False):
+        for root, dirs, files in os.walk(ucfg.baostock['adjust_factor_dir'], topdown=False):
             for name in files:
                 os.remove(os.path.join(root,name))
             for name in dirs:
                 os.rmdir(os.path.join(root,name))
         try:
-            os.mkdir(ucfg.adjust_factor_dir)
+            os.mkdir(ucfg.baostock['adjust_factor_dir'])
         except FileExistsError:
             pass
 else:
-    os.mkdir(ucfg.adjust_factor_dir)
+    os.mkdir(ucfg.baostock['adjust_factor_dir'])
 
 #### 登陆系统 ####
 lg = baostock.login()
@@ -120,7 +120,7 @@ for i in stocklist:  # 循环股票列表stocklist
     result_factor = pd.DataFrame(rs_list, columns=rs_factor.fields)
     result_factor['code'] = i  # 将code列保存的字符串sh.600000样式股票代码，替换为整数型的600000
     print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-    csv_file = ucfg.adjust_factor_dir + os.sep + i + '.csv'
+    csv_file = ucfg.baostock['adjust_factor_dir'] + os.sep + i + '.csv'
     result_factor.to_csv(csv_file, encoding="gbk", index=False)
 
 #### 登出系统 ####

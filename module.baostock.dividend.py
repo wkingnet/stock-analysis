@@ -8,6 +8,7 @@ baostock.com/baostock/index.php/除权除息信息
 
 import os
 import time
+import datetime
 import pandas as pd
 
 import baostock
@@ -16,7 +17,7 @@ import user_config as ucfg
 
 #变量定义部分
 #定义要下载的股票区间
-start_stock_num = ''  # 留空则从头开始处理 不需要输入sh/sz
+start_stock_num = '600370'  # 留空则从头开始处理 不需要输入sh/sz
 end_stock_num = ''  # 留空则处理到末尾
 
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
@@ -36,7 +37,8 @@ def download_stocklist():
     # 方法说明：获取指定交易日期所有股票列表。通过API接口获取证券代码及股票交易状态信息，与日K线数据同时更新。
     # 可以通过参数‘某交易日’获取数据（包括：A股、指数），提供2006 - 今数据。
     # 返回类型：pandas的DataFrame类型。
-    rs = baostock.query_all_stock(day=time.strftime("%Y-%m-%d", time.localtime()))
+    # 由于当天股票列表需等16点以后才生成，因此用昨天的股票列表。
+    rs = baostock.query_all_stock(day=(datetime.date.today() + datetime.timedelta(-1)))
 
     while (rs.error_code == '0') & rs.next():
         # 获取一条记录，将记录合并在一起
@@ -80,20 +82,20 @@ def update_stocklist(stocklist, start_num, end_num):
 
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
-if os.path.exists(ucfg.dividend_dir):
+if os.path.exists(ucfg.baostock['dividend_dir']):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
-        for root, dirs, files in os.walk(ucfg.dividend_dir, topdown=False):
+        for root, dirs, files in os.walk(ucfg.baostock['dividend_dir'], topdown=False):
             for name in files:
                 os.remove(os.path.join(root,name))
             for name in dirs:
                 os.rmdir(os.path.join(root,name))
         try:
-            os.mkdir(ucfg.dividend_dir)
+            os.mkdir(ucfg.baostock['dividend_dir'])
         except FileExistsError:
             pass
 else:
-    os.mkdir(ucfg.dividend_dir)
+    os.mkdir(ucfg.baostock['dividend_dir'])
 
 #### 登陆系统 ####
 lg = baostock.login()
@@ -128,7 +130,7 @@ for i in stocklist:  # 循环股票列表stocklist
             print(f'{process_info} 处理中 {year}年完成 已用{str(round(time.time() - starttime_tick, 2))}秒 '
                   f'开始时间[{starttime_str}]')
     print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-    csv_file = ucfg.dividend_dir + os.sep + i + '.csv'
+    csv_file = ucfg.baostock['dividend_dir'] + os.sep + i + '.csv'
     result_dividend.to_csv(csv_file, encoding="gbk", index=False)
 
 #### 登出系统 ####
