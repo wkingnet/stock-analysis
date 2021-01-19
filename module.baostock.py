@@ -114,7 +114,7 @@ for i in stocklist:
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
         print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-        csv_file = ucfg.csv_path + os.sep + i + '.csv'
+        csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
         result.to_csv(csv_file, index=True)
 
 #### 登出系统 ####
