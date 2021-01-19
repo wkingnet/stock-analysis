@@ -20,10 +20,6 @@ import user_config as ucfg
 #变量定义
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
-#定义要下载的股票区间
-start_stock_num = ''  # 留空则从沪市第一只股票开始处理 不需要输入sh/sz
-end_stock_num = ''  # 留空则处理到深市最后一只股票
-
 
 # 获取沪深 A 股股票代码和简称数据
 def download_stocklist():
@@ -75,32 +71,41 @@ def update_stocklist(stocklist, start_num, end_num):
             end_index = stocklist.index(i)
             stocklist = stocklist[:end_index]
 
+    print(f'股票列表切片完成，共有{len(stocklist)}只股票')
     return stocklist
 
 
 # 主程序开始
+
+# 判断目录和文件是否存在，存在则直接删除
+if os.path.exists(ucfg.baostock['csv_index']):
+    choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
+    if choose == 'y':
+        for root, dirs, files in os.walk(ucfg.baostock['csv_index'], topdown=False):
+            for name in files:
+                os.remove(os.path.join(root,name))
+            for name in dirs:
+                os.rmdir(os.path.join(root,name))
+        try:
+            os.mkdir(ucfg.baostock['csv_index'])
+        except FileExistsError:
+            pass
+else:
+    os.mkdir(ucfg.baostock['csv_index'])
+
 #### 登陆系统 ####
 lg = baostock.login()
 # 显示登陆返回信息
 print('login respond error_code:' + lg.error_code)
 print('login respond  error_msg:' + lg.error_msg)
 
-# 下载最新股票代码列表
-stocklist = download_stocklist()
-stocklist = update_stocklist(stocklist, start_stock_num, end_stock_num)
-
-for i in stocklist:
-    if i[0:1] == '6':
-        ii = 'sh.' + i
-    elif i[0:1] == '0' or i[0:1] == '3':
-        ii = 'sz.' + i
-
-    process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
+for i in ucfg.baostock['index_list']:
+    process_info = '[' + str(ucfg.baostock['index_list'].index(i) + 1) + '/' + str(len(ucfg.baostock['index_list'])) + '] ' + i
     try:
-        rs = baostock.query_history_k_data_plus(ii,
-            "date,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,peTTM,psTTM,pbMRQ,isST",
-            start_date='1991-01-01', end_date='',
-            frequency="d", adjustflag="3")
+        rs = baostock.query_history_k_data_plus(i,
+            "date,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg",
+            start_date='1990-12-19', end_date='',
+            frequency="d")
     except:
         print(process_info + ' >>>wrong<<<')
         print('query_history_k_data_plus respond error_code:' + rs.error_code)
@@ -113,7 +118,7 @@ for i in stocklist:
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
         print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-        csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
+        csv_file = ucfg.baostock['csv_index'] + os.sep + i + '.csv'
         result.to_csv(csv_file, index=True)
 
 #### 登出系统 ####
