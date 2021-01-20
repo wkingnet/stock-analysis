@@ -9,6 +9,7 @@
 """
 
 import os
+import csv
 import time
 import datetime
 import pandas as pd
@@ -18,7 +19,7 @@ import baostock
 import user_config as ucfg
 
 #变量定义
-adjustflag = '2'  #  字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
+adjustflag = '3'  #  字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
 #定义要下载的股票区间
@@ -53,8 +54,6 @@ def download_stocklist():
 # 切片股票列表stocklist，指定开始股票和结束股票
 def update_stocklist(stocklist, start_num, end_num):
     """
-
-
     Parameters
     ----------
     start_num : str
@@ -78,6 +77,21 @@ def update_stocklist(stocklist, start_num, end_num):
 
     print(f'股票列表切片完成，共有{len(stocklist)}只股票')
     return stocklist
+
+def stock_get_lastdate(stockcode):
+    """
+    获取输入的CSV文件的已有最新日期。返回最新日期。日期必须位于CSV文件的第二列
+    """
+    file = ucfg.baostock['csv_day'] + os.sep + stockcode
+    with open(file) as f_obj:
+        csv_obj = csv.reader(f_obj)
+        for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
+            lastdate = row[1]
+    lastdate = datetime.datetime.strptime(lastdate, '%Y-%m-%d')
+    delta = datetime.timedelta(days=1)
+    lastdate = lastdate + delta  # 获取到的日期加1天，表示从下一天开始获取数据
+    lastdate = lastdate.strftime('%Y-%m-%d')
+    return lastdate
 
 
 # 主程序开始
@@ -114,11 +128,18 @@ for i in stocklist:
     elif i[0:1] == '0' or i[0:1] == '3':
         ii = 'sz.' + i
 
+    if choose == 'y':
+        start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
+    else:
+        start_date = stock_get_lastdate(i + '.csv')  # 获取当前已下载股票CSV的最新日期
+    print(start_date)
+
+
     process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
     try:
         rs = baostock.query_history_k_data_plus(ii,
             "date,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,peTTM,psTTM,pbMRQ,isST",
-            start_date='1990-12-19', end_date='',
+            start_date=start_date, end_date='',
             frequency="d", adjustflag=adjustflag)
     except:
         print(process_info + ' >>>wrong<<<')
@@ -131,9 +152,14 @@ for i in stocklist:
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
-        print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
         csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
-        result.to_csv(csv_file, index=True)
+        if choose == 'y':
+            result.to_csv(csv_file, index=True)
+        else:
+            df = pd.read_csv(csv_file, index_col=0)
+            df = df.append(result, ignore_index=True)
+            df.to_csv(csv_file, index=True)
+        print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
 
 #### 登出系统 ####
 baostock.logout()
