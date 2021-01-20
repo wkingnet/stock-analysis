@@ -132,7 +132,6 @@ for i in stocklist:
         start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
     else:
         start_date = stock_get_lastdate(i + '.csv')  # 获取当前已下载股票CSV的最新日期
-    print(start_date)
 
 
     process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
@@ -159,7 +158,7 @@ for i in stocklist:
             df = pd.read_csv(csv_file, index_col=0)
             df = df.append(result, ignore_index=True)
             df.to_csv(csv_file, index=True)
-        print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
+        print(f'{process_info} 完成 从{start_date}起更新数据 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
 
 #### 登出系统 ####
 baostock.logout()
