@@ -88,7 +88,7 @@ def stock_get_lastdate(stockcode):
         for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
             lastdate = row[1]
     lastdate = datetime.datetime.strptime(lastdate, '%Y-%m-%d')
-    delta = datetime.timedelta(days=1)
+    delta = datetime.timedelta(days=2)
     lastdate = lastdate + delta  # 获取到的日期加1天，表示从下一天开始获取数据
     lastdate = lastdate.strftime('%Y-%m-%d')
     return lastdate
@@ -128,13 +128,16 @@ for i in stocklist:
     elif i[0:1] == '0' or i[0:1] == '3':
         ii = 'sz.' + i
 
-    if choose == 'y':
+    process_info = f'[{(stocklist.index(i) + 1):>4}/{str(len(stocklist))}] {i}'
+    csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
+    if choose == 'y' or not os.path.exists(csv_file):
         start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
     else:
         start_date = stock_get_lastdate(i + '.csv')  # 获取当前已下载股票CSV的最新日期
+        if start_date > str(datetime.date.today()):  # 如果日期大于今天，跳过此次循环
+            print(f'{process_info} 日期大于今天，无需更新，跳过')
+            continue
 
-
-    process_info = '[' + str(stocklist.index(i) + 1) + '/' + str(len(stocklist)) + '] ' + i
     try:
         rs = baostock.query_history_k_data_plus(ii,
             "date,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,peTTM,psTTM,pbMRQ,isST",
@@ -151,8 +154,8 @@ for i in stocklist:
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
-        csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
-        if choose == 'y':
+        
+        if choose == 'y' or not os.path.exists(csv_file):
             result.to_csv(csv_file, index=True)
         else:
             df = pd.read_csv(csv_file, index_col=0)
