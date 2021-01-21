@@ -19,7 +19,7 @@ import baostock
 import user_config as ucfg
 
 #变量定义
-adjustflag = '3'  #  字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
+adjustflag = '2'  #  字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
 #定义要下载的股票区间
