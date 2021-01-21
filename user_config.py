@@ -22,7 +22,7 @@ index_list = [  # 通达信需要转换的指数文件。通达信按998查看�
 ]
 
 baostock = {
-    'csv_day_bfq': 'd:/baostock/日线数据',  # 指定日线数据不复权保存目录
+    'csv_day_bfq': 'd:/baostock/日线数据bfq',  # 指定日线数据不复权保存目录
     'csv_day_qfq': 'd:/日线数据qfq',  # 指定数据前复权保存目录
     'csv_index': 'd:/baostock/指数',  # 指定指数保存目录
     'dividend_dir': 'd:/baostock/除权除息数据',  # 指定除权除息保存目录

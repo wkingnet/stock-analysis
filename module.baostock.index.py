@@ -75,6 +75,21 @@ def update_stocklist(stocklist, start_num, end_num):
     print(f'股票列表切片完成，共有{len(stocklist)}只股票')
     return stocklist
 
+def stock_get_lastdate(stockcode):
+    """
+    获取输入的CSV文件的已有最新日期。返回最新日期。日期必须位于CSV文件的第二列
+    """
+    file = ucfg.baostock['csv_index'] + os.sep + stockcode
+    with open(file) as f_obj:
+        csv_obj = csv.reader(f_obj)
+        for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
+            lastdate = row[1]
+    lastdate = datetime.datetime.strptime(lastdate, '%Y-%m-%d')
+    delta = datetime.timedelta(days=1)
+    lastdate = lastdate + delta  # 获取到的日期加1天，表示从下一天开始获取数据
+    lastdate = lastdate.strftime('%Y-%m-%d')
+    return lastdate
+
 
 # 主程序开始
 
@@ -101,11 +116,19 @@ print('login respond error_code:' + lg.error_code)
 print('login respond  error_msg:' + lg.error_msg)
 
 for i in ucfg.baostock['index_list']:
-    process_info = '[' + str(ucfg.baostock['index_list'].index(i) + 1) + '/' + str(len(ucfg.baostock['index_list'])) + '] ' + i
+    process_info = f"[{(ucfg.baostock['index_list'].index(i) + 1):>4}/{str(len(ucfg.baostock['index_list']))}] {i}"
+    csv_file = ucfg.baostock['csv_index'] + os.sep + i + '.csv'
+    if choose == 'y' or not os.path.exists(csv_file):
+        start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
+    else:
+        start_date = stock_get_lastdate(i + '.csv')  # 获取当前已下载股票CSV的最新日期
+        if start_date > str(datetime.date.today()):  # 如果日期大于今天，跳过此次循环
+            print(f'{process_info} 日期大于今天，无需更新，跳过')
+            continue
     try:
         rs = baostock.query_history_k_data_plus(i,
             "date,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg",
-            start_date='1990-12-19', end_date='',
+            start_date=start_date, end_date='',
             frequency="d")
     except:
         print(process_info + ' >>>wrong<<<')
@@ -118,9 +141,15 @@ for i in ucfg.baostock['index_list']:
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
-        print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-        csv_file = ucfg.baostock['csv_index'] + os.sep + i + '.csv'
-        result.to_csv(csv_file, index=True)
+
+        if choose == 'y' or not os.path.exists(csv_file):
+            result.to_csv(csv_file, index=True)
+        else:
+            df = pd.read_csv(csv_file, index_col=0)
+            df = df.append(result, ignore_index=True)
+            df.to_csv(csv_file, index=True)
+        print(f"{process_info} 完成 从 {start_date} 起更新数据 已用{(time.time() - starttime_tick):.2f}秒 剩余预计"
+              f"{int((time.time()-starttime_tick)/(ucfg.baostock['index_list'].index(i)+1)*(len(ucfg.baostock['index_list'])-(ucfg.baostock['index_list'].index(i)+1)))}秒")
 
 #### 登出系统 ####
 baostock.logout()
