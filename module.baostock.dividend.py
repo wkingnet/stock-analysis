@@ -152,8 +152,8 @@ for i in stocklist:  # 循环股票列表stocklist
                 rs_list.append(rs_dividend_temp.get_row_data())
             result_dividend = pd.DataFrame(rs_list, columns=rs_dividend_temp.fields)
             result_dividend['code'] = i  # 将code列保存的字符串sh.600000样式股票代码，替换为整数型的600000
-            print(f'{process_info} 处理中 {year}年完成 已用{str(round(time.time() - starttime_tick, 2))}秒 '
-                  f'开始时间[{starttime_str}]')
+            print(f'{process_info} 处理中 {year}年完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
+          f'{int((time.time()-starttime_tick)/(stocklist.index(i)+1)*(len(stocklist)-(stocklist.index(i)+1)))}秒')
 
     if choose == 'y' or not os.path.exists(csv_file):
         result_dividend.to_csv(csv_file, encoding="gbk", index=False)
