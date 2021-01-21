@@ -88,7 +88,7 @@ def stock_get_lastdate(stockcode):
         for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
             lastdate = row[1]
     lastdate = datetime.datetime.strptime(lastdate, '%Y-%m-%d')
-    delta = datetime.timedelta(days=2)
+    delta = datetime.timedelta(days=1)
     lastdate = lastdate + delta  # 获取到的日期加1天，表示从下一天开始获取数据
     lastdate = lastdate.strftime('%Y-%m-%d')
     return lastdate
@@ -161,7 +161,8 @@ for i in stocklist:
             df = pd.read_csv(csv_file, index_col=0)
             df = df.append(result, ignore_index=True)
             df.to_csv(csv_file, index=True)
-        print(f'{process_info} 完成 从{start_date}起更新数据 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
+        print(f'{process_info} 完成 从 {start_date} 起更新数据 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
+              f'{int((time.time()-starttime_tick)/(stocklist.index(i)+1)*(len(stocklist)-(stocklist.index(i)+1)))}秒')
 
 #### 登出系统 ####
 baostock.logout()

@@ -7,7 +7,9 @@ baostock.com/baostock/index.php/除权除息信息
 """
 
 import os
+import csv
 import time
+import datetime
 import pandas as pd
 
 import baostock
@@ -78,6 +80,24 @@ def update_stocklist(stocklist, start_num, end_num):
     print(f'股票列表切片完成，共有{len(stocklist)}只股票')
     return stocklist
 
+def stock_get_lastdate(stockcode):
+    """
+    获取输入的CSV文件的已有最新日期。返回最新日期。日期必须位于CSV文件的第二列
+    """
+    file = ucfg.baostock['adjust_factor_dir'] + os.sep + stockcode
+    with open(file) as f_obj:
+        csv_obj = csv.reader(f_obj)
+        for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
+            lastdate = row[1]
+    if lastdate == 'dividOperateDate':  # 如果是dividOperateDate，表示没有除权因子，是新股。直接返回大日期跳过。
+        lastdate = '2999-01-01'
+    else:
+        lastdate = datetime.datetime.strptime(lastdate, '%Y-%m-%d')
+        delta = datetime.timedelta(days=1)
+        lastdate = lastdate + delta  # 获取到的日期加1天，表示从下一天开始获取数据
+        lastdate = lastdate.strftime('%Y-%m-%d')
+    return lastdate
+
 
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
@@ -112,16 +132,32 @@ for i in stocklist:  # 循环股票列表stocklist
     elif i[0:1] == '0' or i[0:1] == '3':
         ii = 'sz.' + i
 
-    process_info = f'[{str(stocklist.index(i) + 1)}/{str(len(stocklist))}]{i}'
+    process_info = f'[{(stocklist.index(i) + 1):>4}/{str(len(stocklist))}] {i}'
+    csv_file = ucfg.baostock['adjust_factor_dir'] + os.sep + i + '.csv'
+    if choose == 'y' or not os.path.exists(csv_file):
+        start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
+    else:
+        start_date = stock_get_lastdate(i + '.csv')  # 获取当前已下载股票CSV的最新日期
+        if start_date > str(datetime.date.today()):  # 如果日期大于今天，跳过此次循环
+            print(f'{process_info} 日期大于今天，无需更新，跳过')
+            continue
+
     rs_list = []
-    rs_factor = baostock.query_adjust_factor(code=ii, start_date="1990-01-01", end_date=today)
+    rs_factor = baostock.query_adjust_factor(code=ii, start_date=start_date, end_date=today)
     while (rs_factor.error_code == '0') & rs_factor.next():
         rs_list.append(rs_factor.get_row_data())
     result_factor = pd.DataFrame(rs_list, columns=rs_factor.fields)
     result_factor['code'] = i  # 将code列保存的字符串sh.600000样式股票代码，替换为整数型的600000
-    print(f'{process_info} 完成 已用{str(round(time.time() - starttime_tick, 2))}秒 开始时间[{starttime_str}]')
-    csv_file = ucfg.baostock['adjust_factor_dir'] + os.sep + i + '.csv'
-    result_factor.to_csv(csv_file, encoding="gbk", index=False)
+
+    if choose == 'y' or not os.path.exists(csv_file):
+        result_factor.to_csv(csv_file, encoding="gbk", index=False)
+    else:
+        df = pd.read_csv(csv_file, index_col=0)
+        df = df.append(result_factor, ignore_index=True)
+        df.to_csv(csv_file, index=True)
+
+    print(f'{process_info} 完成 从 {start_date} 起更新数据 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
+          f'{int((time.time()-starttime_tick)/(stocklist.index(i)+1)*(len(stocklist)-(stocklist.index(i)+1)))}秒')
 
 #### 登出系统 ####
 baostock.logout()
