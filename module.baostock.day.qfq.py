@@ -82,7 +82,7 @@ def stock_get_lastdate(stockcode):
     """
     获取输入的CSV文件的已有最新日期。返回最新日期。日期必须位于CSV文件的第二列
     """
-    file = ucfg.baostock['csv_day'] + os.sep + stockcode
+    file = ucfg.baostock['csv_day_qfq'] + os.sep + stockcode
     with open(file) as f_obj:
         csv_obj = csv.reader(f_obj)
         for row in csv_obj:  # 循环读取CSV的每一行，自动读取到末尾行，即可获取最新的日期。日期列必须位于第2列
@@ -97,20 +97,20 @@ def stock_get_lastdate(stockcode):
 # 主程序开始
 
 # 判断目录和文件是否存在，存在则直接删除
-if os.path.exists(ucfg.baostock['csv_day']):
+if os.path.exists(ucfg.baostock['csv_day_qfq']):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
-        for root, dirs, files in os.walk(ucfg.baostock['csv_day'], topdown=False):
+        for root, dirs, files in os.walk(ucfg.baostock['csv_day_qfq'], topdown=False):
             for name in files:
                 os.remove(os.path.join(root,name))
             for name in dirs:
                 os.rmdir(os.path.join(root,name))
         try:
-            os.mkdir(ucfg.baostock['csv_day'])
+            os.mkdir(ucfg.baostock['csv_day_qfq'])
         except FileExistsError:
             pass
 else:
-    os.mkdir(ucfg.baostock['csv_day'])
+    os.mkdir(ucfg.baostock['csv_day_qfq'])
 
 #### 登陆系统 ####
 lg = baostock.login()
@@ -129,7 +129,7 @@ for i in stocklist:
         ii = 'sz.' + i
 
     process_info = f'[{(stocklist.index(i) + 1):>4}/{str(len(stocklist))}] {i}'
-    csv_file = ucfg.baostock['csv_day'] + os.sep + i + '.csv'
+    csv_file = ucfg.baostock['csv_day_qfq'] + os.sep + i + '.csv'
     if choose == 'y' or not os.path.exists(csv_file):
         start_date = '1990-12-19'  # 无已下载数据，指定股票下载起始日期，重头开始下载
     else:
