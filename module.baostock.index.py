@@ -153,7 +153,7 @@ for i in ucfg.baostock['index_list']:
 
 #### 登出系统 ####
 baostock.logout()
-
+'''
 # 给上证指数文件加上【全部A股股价平均数值列】
 df_index = pd.read_csv(ucfg.baostock['csv_index'] + '/sh.000001.csv', index_col=0)  # 读取上证指数文件
 file_list = os.listdir(ucfg.baostock['csv_day_bfq'])  # 日线数据列表
@@ -192,3 +192,4 @@ while index_row_num < df_index.shape[0]:  # 循环df_index全部行，也就是A
     df_index.to_csv(ucfg.baostock['csv_index'] + '/sh.000001.csv', index=True)
     print(f'[{index_row_num + 1}/{df_index.shape[0]}] {index_row_date} {day_avg}')
     index_row_num = index_row_num + 1
+'''
