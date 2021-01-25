@@ -161,9 +161,7 @@ for i in stocklist:
         result = pd.DataFrame(data_list, columns=rs.fields)
         # 抛弃tradestatus=0或volume=0的行  即使一字板涨停，成交量也不可能为0
         result = result.drop(result.loc[(result['tradestatus'] == '0') | (result['volume'] == '0')].index)
-        result['volume'] = result['volume'].astype('float64')
-        result['turn'] = result['turn'].astype('float64')
-        result['close'] = result['close'].astype('float64')
+        result.astype({'volume': 'float64', 'turn': 'float64', 'close': 'float64'}, copy=False)  # 列转换为浮点数
         result['流通股'] = result['volume'] / (result['turn'] / 100.0)  # 计算添加流通股列
         result['流通市值'] = result['流通股'] * result['close']  # 计算添加流通股列
 

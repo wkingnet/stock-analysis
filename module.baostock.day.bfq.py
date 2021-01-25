@@ -35,16 +35,21 @@ def download_stocklist():
     data_list = []
     stocklist = []
 
-    # 方法说明：获取指定交易日期所有股票列表。通过API接口获取证券代码及股票交易状态信息，与日K线数据同时更新。
+    # 方法说明：返回最近可用的日期的所有股票列表。通过API接口获取证券代码及股票交易状态信息，与日K线数据同时更新。
     # 可以通过参数‘某交易日’获取数据（包括：A股、指数），提供2006 - 今数据。
     # 返回类型：pandas的DataFrame类型。
-    # 由于当天股票列表需等16点以后才生成，因此用昨天的股票列表。
-    rs = baostock.query_all_stock(day=(datetime.date.today() + datetime.timedelta(-1)))
+    # 由于接口更新问题，写了一个循环来读取最新的有效交易日期股票列表
+    lastest_trade_date = datetime.date.today()
+    while True:
+        rs = baostock.query_all_stock(day=lastest_trade_date)
+        while (rs.error_code == '0') & rs.next():
+            # 获取一条记录，将记录合并在一起
+            data_list.append(rs.get_row_data())
+        if len(data_list) == 0:  # 如果没获取到股票列表
+            lastest_trade_date = lastest_trade_date + datetime.timedelta(-1)  # 天数减一天
+        else:  # 有股票列表，退出循环
+            break
 
-    while (rs.error_code == '0') & rs.next():
-        # 获取一条记录，将记录合并在一起
-        data_list.append(rs.get_row_data())
-    # print(data_list)
     for data in data_list:  # 筛选获得的数据列表，只取股票列表，剔除指数
         if data[0][:4] == 'sh.6' or data[0][:5] == 'sz.00' or data[0][:5] == 'sz.30':
             stocklist.append(data[0][3:])
@@ -154,13 +159,18 @@ for i in stocklist:
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
         result = pd.DataFrame(data_list, columns=rs.fields)
-        
+        # 抛弃tradestatus=0或volume=0的行  即使一字板涨停，成交量也不可能为0
+        result = result.drop(result.loc[(result['tradestatus'] == '0') | (result['volume'] == '0')].index)
+        result.astype({'volume': 'float64', 'turn': 'float64', 'close': 'float64'}, copy=False)  # 列转换为浮点数
+        result['流通股'] = result['volume'] / (result['turn'] / 100.0)  # 计算添加流通股列
+        result['流通市值'] = result['流通股'] * result['close']  # 计算添加流通股列
+
         if choose == 'y' or not os.path.exists(csv_file):
-            result.to_csv(csv_file, index=True)
+            result.to_csv(csv_file, encoding='gbk', index=True)
         else:
-            df = pd.read_csv(csv_file, index_col=0)
+            df = pd.read_csv(csv_file, encoding='gbk', index_col=0)
             df = df.append(result, ignore_index=True)
-            df.to_csv(csv_file, index=True)
+            df.to_csv(csv_file, encoding='gbk', index=True)
         print(f'{process_info} 完成 从 {start_date} 起更新数据 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
               f'{int((time.time()-starttime_tick)/(stocklist.index(i)+1)*(len(stocklist)-(stocklist.index(i)+1)))}秒')
 
