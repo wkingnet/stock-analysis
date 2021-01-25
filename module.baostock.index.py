@@ -153,17 +153,17 @@ for i in ucfg.baostock['index_list']:
 
 #### 登出系统 ####
 baostock.logout()
-'''
+
 # 给上证指数文件加上【全部A股股价平均数值列】
 df_index = pd.read_csv(ucfg.baostock['csv_index'] + '/sh.000001.csv', index_col=0)  # 读取上证指数文件
-file_list = os.listdir(ucfg.baostock['csv_day'])  # 日线数据列表
+file_list = os.listdir(ucfg.baostock['csv_day_bfq'])  # 日线数据列表
 
 index_row_num = 0
 while index_row_num < df_index.shape[0]:  # 循环df_index全部行，也就是A股全部交易天数
     day_avg = 0  # 当天所有股票开高低收平均值相加的平均值
     day_trade_num = 0  # 当天交易的股票的数量
     for file in file_list:  # 所有股票循环一次
-        filepath = ucfg.baostock['csv_day'] + os.sep + file
+        filepath = ucfg.baostock['csv_day_bfq'] + os.sep + file
         index_row_date = df_index.iat[index_row_num, 0]  # 读取指数文件当前行保存的日期
         with open(filepath) as fileobj:  # 读取日K线文件保存为对象
             csvobj = csv.reader(fileobj)  # 用CSV库读取
@@ -192,4 +192,3 @@ while index_row_num < df_index.shape[0]:  # 循环df_index全部行，也就是A
     df_index.to_csv(ucfg.baostock['csv_index'] + '/sh.000001.csv', index=True)
     print(f'[{index_row_num + 1}/{df_index.shape[0]}] {index_row_date} {day_avg}')
     index_row_num = index_row_num + 1
-'''
