@@ -153,7 +153,7 @@ used_time['sh_endtime'] = time.time()
 file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
 used_time['sz_begintime'] = time.time()
 for f in file_list:
-    if f[0:4] == 'sz00' or f[0:4] == 'sz30':    #处理深市sh00开头和创业板sh30文件，否则跳过此次循环
+    if f[0:4] == 'sz00' or f[0:4] == 'sz30':    # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_day'])
 used_time['sz_endtime'] = time.time()
