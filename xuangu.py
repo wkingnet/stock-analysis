@@ -8,7 +8,7 @@ import time
 import datetime
 import pandas as pd
 
-import CeLue  # 个人策略文件。不共享。
+import CeLue  # 个人策略文件，不分享
 import user_config as ucfg
 
 
