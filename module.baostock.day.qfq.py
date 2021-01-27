@@ -18,11 +18,11 @@ import baostock
 
 import user_config as ucfg
 
-#变量定义
-adjustflag = '2'  #  字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
+# 变量定义
+adjustflag = '2'  # 字符串类型.  复权类型，默认3，1=后复权，2=前复权， 3=不复权
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime_tick = time.time()
-#定义要下载的股票区间
+# 定义要下载的股票区间
 start_stock_num = ''  # 留空则从沪市第一只股票开始处理 不需要输入sh/sz
 end_stock_num = ''  # 留空则处理到深市最后一只股票
 
