@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 """
 模仿通达信语句的函数库。如MA(C,5) REF(C,1)等样式。
-语句简单，只为了和通达信公式看起来一致
+语句简单，只为了和通达信公式看起来一致，方便排查
 作者：wking [http://wkings.net]
 """
 import statistics
