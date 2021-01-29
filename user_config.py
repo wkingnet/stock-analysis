@@ -21,6 +21,9 @@ index_list = [  # 通达信需要转换的指数文件。通达信按998查看�
     'sz399001.day',  # 深成指
 ]
 
+
+# 用不到的参数
+"""
 baostock = {
     'csv_day_bfq': 'd:/baostock/日线数据bfq',  # 指定日线数据不复权保存目录
     'csv_day_qfq': 'd:/日线数据qfq',  # 指定数据前复权保存目录
@@ -29,5 +32,5 @@ baostock = {
     'adjust_factor_dir': 'd:/baostock/复权因子数据',  # 指定复权因子保存目录
     'index_list': ['sh.000001', 'sh.000300', 'sz.399001']  # baostock要下载的指数。000001上证指数，000300沪深300，399001深成指
 }
-
+"""
 # 配置部分结束

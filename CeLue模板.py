@@ -20,9 +20,10 @@ def 策略1(df, start_date='', end_date=''):
     
     判断1 = df.at[end_date, 'close'] > 100  # 判断1，最新一天的收盘价大于100元
 
-    if max(换手率[-200:]) < 15:  # 如果最近200天内，最大换手率小于15%
-        global 判断2
+    if max(换手率[-200:]) < 15:  # 如果最近200天内的最大换手率小于15%
         判断2 = True
+    else:
+    	判断2 = False
 
     result = 判断1 and 判断2
     return result
