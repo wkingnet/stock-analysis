@@ -10,7 +10,7 @@ import pandas as pd
 
 import CeLue  # 个人策略文件，不分享
 import user_config as ucfg
-
+import pytdx.cr
 # 变量定义
 tdxpath = ucfg.tdx['tdx_path']
 csvdaypath = ucfg.baostock['csv_day_qfq']
