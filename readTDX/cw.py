@@ -30,7 +30,7 @@ starttime_tick = time.time()
 
 
 # 主程序开始
-# TODO 财报文件使用代码自动更新下载功能
+# TO-DO 财报文件使用代码自动更新下载功能
 # 读取财务文件
 cw_path = tdxpath + os.sep + "vipdoc" + os.sep + "cw"
 tmplist = os.listdir(cw_path)  # 遍历通达信vipdoc/cw目录
