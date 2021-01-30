@@ -163,9 +163,9 @@ while index_row_num < df_index.shape[0]:  # 循环df_index全部行，也就是A
     day_avg = 0  # 当天所有股票开高低收平均值相加的平均值
     day_trade_num = 0  # 当天交易的股票的数量
     for file in file_list:  # 所有股票循环一次
-        filepath = ucfg.baostock['csv_day_bfq'] + os.sep + file
+        local_zipfile_path = ucfg.baostock['csv_day_bfq'] + os.sep + file
         index_row_date = df_index.iat[index_row_num, 0]  # 读取指数文件当前行保存的日期
-        with open(filepath) as fileobj:  # 读取日K线文件保存为对象
+        with open(local_zipfile_path) as fileobj:  # 读取日K线文件保存为对象
             csvobj = csv.reader(fileobj)  # 用CSV库读取
             header = next(csvobj)
             for row in csvobj:
