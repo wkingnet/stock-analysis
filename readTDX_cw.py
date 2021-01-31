@@ -19,6 +19,7 @@ import datetime
 import hashlib
 import zipfile
 import pandas as pd
+import pytdx.reader.gbbq_reader
 
 import func_TDX
 import user_config as ucfg
@@ -81,3 +82,10 @@ for zipfile_filename in local_zipfile_list:
         print(f'{zipfile_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
 
 print(f'专业财务文件检查更新完成')
+
+# 解密通达信股本变迁文件
+print(f'开始解密通达信gbbq股本变迁文件')
+filepath = ucfg.tdx['tdx_path'] + os.sep + 'T0002/hq_cache/gbbq'
+df_gbbq = pytdx.reader.gbbq_reader.GbbqReader().get_df(filepath)
+df_gbbq.to_csv('d:/gbbq.csv', encoding='gbk', index=True)
+print(f'股本变迁解密完成 已用{(time.time() - starttime_tick):>5.2f}秒')
