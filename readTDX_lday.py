@@ -184,11 +184,12 @@ print('指数文件处理完毕，用时' + str(int(used_time['index_endtime'] -
 
 starttime_tick = time.time()
 file_list = os.listdir(ucfg.tdx['csv_lday'])
-df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
+df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
 for filename in file_list:
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=0, encoding='gbk')
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq)
     df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
+
     print(f'{process_info} 完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
           f'{int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))}秒')

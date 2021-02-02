@@ -14,7 +14,7 @@ import user_config as ucfg
 
 # 变量定义
 tdxpath = ucfg.tdx['tdx_path']
-csvdaypath = ucfg.tdx['csv_day']
+csvdaypath = ucfg.tdx['csv_lday']
 已选出股票列表 = []  # 策略选出的股票
 要剔除的通达信概念 = ["ST板块", ]  # list类型。通达信软件中查看“概念板块”。
 要剔除的通达信行业 = ["T1002", ]  # list类型。记事本打开 通达信目录\incon.dat，查看#TDXNHY标签的行业代码。
@@ -26,7 +26,7 @@ starttime_tick = time.time()
 # 主程序开始
 # 要进行策略的股票列表筛选
 print("生成股票列表")
-stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_day'])]  # 去文件名里的.csv，生成纯股票代码list
+stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_lday'])]  # 去文件名里的.csv，生成纯股票代码list
 print("剔除通达信概念股票")
 tmplist = []
 df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
@@ -54,7 +54,6 @@ for stockcode in stocklist:
     process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
     csvfile = csvdaypath + os.sep + stockcode + '.csv'
     df = pd.read_csv(csvfile, encoding='gbk', index_col=0)
-    df = df.set_index('date')
     cl1 = CeLue.策略1(df)
     if cl1:
         已选出股票列表.append(stockcode)

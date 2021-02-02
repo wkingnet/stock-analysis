@@ -8,6 +8,8 @@
 """
 import os
 import statistics
+import time
+import datetime
 import pandas as pd
 from retry import retry
 import user_config as ucfg
@@ -141,6 +143,7 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
     :param fqtype:可选，复权类型。默认前复权。
     :return:复权后的DF格式股票日线数据
     """
+    import csv
 
     '''以下是从https://github.com/rainx/pytdx/issues/78#issuecomment-335668322 提取学习的前复权代码
     import datetime
@@ -238,22 +241,58 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
     # 提取info表的'fenhong', 'peigu', 'peigujia',‘songzhuangu'列的值，按日期一一对应，列拼接到data表。
     # 也就是将当日是除权除息日的行，对应的除权除息数据，写入对应的data表的行。
     data = pd.concat([data, df_gbbq[['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
-                                  '送转股-后流通盘']][df_code.index[0]:]], axis=1)
+                                     '送转股-后流通盘']][df_code.index[0]:]], axis=1)
     data = data.fillna(0)  # 无效值填空0
     data['preclose'] = (data['close'].shift(1) * 10 - data['分红-前流通盘'] + data['配股-后总股本']
                         * data['配股价-前总股本']) / (10 + data['配股-后总股本'] + data['送转股-后流通盘'])
     data['adj'] = (data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod()  # 计算每日复权因子
-    data['open'] = (data['open'] * data['adj'])
-    data['high'] = (data['high'] * data['adj'])
-    data['low'] = (data['low'] * data['adj'])
-    data['close'] = (data['close'] * data['adj'])
+    data['open'] = data['open'] * data['adj']
+    data['high'] = data['high'] * data['adj']
+    data['low'] = data['low'] * data['adj']
+    data['close'] = data['close'] * data['adj']
     # data['preclose'] = data['preclose'] * data['adj']  # 这行没用了
     data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, })  # 指定列四舍五入
     data = data[data['if_trade']]
 
-    # 抛弃过程处理行，按传入参数切片数据
+    # 抛弃过程处理行
     data = data.drop(['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
                       '送转股-后流通盘', 'if_trade', 'category', 'preclose', 'adj'], axis=1)[data['open'] != 0]
+    # 复权处理完成
+
+    # 计算换手率
+    starttime_tick = time.time()
+    cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # 遍历cw目录 生成文件名列表
+    for cwfile in cwfile_list:  # 遍历所有文件
+        cwfile_date = str(cwfile[4:-4])
+        with open(ucfg.tdx['csv_cw'] + os.sep + cwfile) as fileobj:
+            csvobj = csv.reader(fileobj)
+            starttime_tick = time.time()
+            for row in csvobj:  # 按行遍历CSV
+                if row[1] == code:  # 如果第一列等于要找的股票
+                    # 财务文件字段的对应列需+1
+                    # print(f'{cwfile_date} 总股本:{row[239]} 流通股本:{row[267]}')
+                    starttime_tick = time.time()
+                    if row[267] == '0' or row[267] == '0.0':  # 如果csv文件的流通股值是0，退出CSV for循环 也就是打开下一个gpcw文件
+                        break
+                    while True:
+                        try:  # 尝试日期对应行是否存在，不存在会抛出异常
+                            data.loc[cwfile_date]
+                        except:  # 日期对应行不存在
+                            cwfile_date = datetime.datetime.strptime(cwfile_date, '%Y%m%d')  # 字符串转日期格式
+                            cwfile_date = cwfile_date + datetime.timedelta(days=1)  # 加1天
+                            cwfile_date = cwfile_date.strftime('%Y%m%d')  # 日期转字符串
+                        else:
+                            data.at[cwfile_date, '流通股'] = float(row[267])
+                            break  # 退出while循环
+                    print(f'while完成 用时{(time.time() - starttime_tick):.2f}秒')
+                    break  # 退出CSV for循环
+            print(f'遍历CSV完成 用时{(time.time() - starttime_tick):.2f}秒')
+    print(f'导入财报完成 用时{(time.time() - starttime_tick):.2f}秒')
+    data = data.fillna(method='ffill')  # 向下填充无效值
+    data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
+    data['流通市值'] = data['流通股'] * data['close']
+    data['换手率%'] = data['vol'] / data['流通股'] * 100
+
     if len(start_date) == 0 and len(end_date) == 0:
         pass
     elif len(start_date) != 0 and len(end_date) == 0:
@@ -262,5 +301,11 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
         data = data[:end_date]
     elif len(start_date) != 0 and len(end_date) != 0:
         data = data[start_date:end_date]
-    data = data.reset_index()
+    data = data.reset_index()  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
     return data
+
+
+if __name__ == '__main__':
+    df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + '000001.csv', index_col=0, encoding='gbk')
+    df_qfq = make_fq('000001', df_bfq, df_gbbq)

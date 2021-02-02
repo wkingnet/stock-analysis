@@ -15,6 +15,7 @@ tdx = {
     'csv_lday': 'd:/TDXdata/lday_qfq',  # 指定数据保存目录
     'csv_index': 'd:/TDXdata/index',  # 指定指数保存目录
     'csv_cw': 'd:/TDXdata/cw',  # 指定专业财务保存目录
+    'csv_gbbq': 'd:/TDXdata',  # 指定股本变迁保存目录
 }
 
 index_list = [  # 通达信需要转换的指数文件。通达信按998查看重要指数

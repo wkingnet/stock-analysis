@@ -98,7 +98,7 @@ df_gbbq['类别'] = df_gbbq['类别'].astype('object')
 df_gbbq['code'] = df_gbbq['code'].astype('object')
 for i in range(df_gbbq.shape[0]):
     df_gbbq.iat[i, df_gbbq.columns.get_loc("类别"), ] = category[str(df_gbbq.iat[i, df_gbbq.columns.get_loc("类别")])]
-df_gbbq.to_csv(ucfg.tdx['csv_cw'] + os.sep + 'gbbq.csv', encoding='gbk', index=False)
+df_gbbq.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'gbbq.csv', encoding='gbk', index=False)
 # 如果读取，使用下行命令
 # df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': 'object'})
 print(f'股本变迁解密完成 已用{(time.time() - starttime_tick):>5.2f}秒')
