@@ -12,9 +12,9 @@ debug = 1  # 是否开启调试日志输出  1开 0关
 # 目录需要事先手动建立好，不然程序会出错
 tdx = {
     'tdx_path': 'd:/stock/通达信',  # 指定通达信目录
-    'csv_day': 'd:/TDX_data/lday_qfq',  # 指定数据保存目录
-    'csv_index': 'd:/TDX_data/index',  # 指定指数保存目录
-    'csv_cw': 'd:/TDX_data/cw',  # 指定专业财务保存目录
+    'csv_lday': 'd:/TDXdata/lday_qfq',  # 指定数据保存目录
+    'csv_index': 'd:/TDXdata/index',  # 指定指数保存目录
+    'csv_cw': 'd:/TDXdata/cw',  # 指定专业财务保存目录
 }
 
 index_list = [  # 通达信需要转换的指数文件。通达信按998查看重要指数

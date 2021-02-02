@@ -60,7 +60,7 @@ def day2csv(source_dir, file_name, target_dir):
         # 目标文件不存在。写入表头行。begin从0开始转换
         target_file = open(target_path, 'w', encoding="utf-8")  # 以覆盖写模式打开文件
         header = ',' + str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
-                 + str('close') + ',' + str('amount') + ',' + str('vol')
+                 + str('close') + ',' + str('vol') + ',' + str('amount')
         target_file.write(header)
         begin = 0
         end = begin + 32
@@ -111,8 +111,8 @@ def day2csv(source_dir, file_name, target_dir):
                + str(a[2] / 100.0) + ',' \
                + str(a[3] / 100.0) + ',' \
                + str(a[4] / 100.0) + ',' \
-               + str(Decimal(a[5]).quantize(Decimal("1."), rounding="ROUND_HALF_UP")) + ',' \
-               + str(a[6])
+               + str(a[6]) + ',' \
+               + str(Decimal(a[5]).quantize(Decimal("1."), rounding="ROUND_HALF_UP"))
         target_file.write(line)
         begin += 32
         end += 32
@@ -120,10 +120,10 @@ def day2csv(source_dir, file_name, target_dir):
 
 
 # 判断目录和文件是否存在，存在则直接删除
-if os.path.exists(ucfg.tdx['csv_day']) or os.path.exists(ucfg.tdx['csv_index']):
+if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index']):
     choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
     if choose == 'y':
-        for root, dirs, files in os.walk(ucfg.tdx['csv_day'], topdown=False):
+        for root, dirs, files in os.walk(ucfg.tdx['csv_lday'], topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
             for name in dirs:
@@ -134,7 +134,7 @@ if os.path.exists(ucfg.tdx['csv_day']) or os.path.exists(ucfg.tdx['csv_index']):
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
         try:
-            os.mkdir(ucfg.tdx['csv_day'])
+            os.mkdir(ucfg.tdx['csv_lday'])
         except FileExistsError:
             pass
         try:
@@ -142,7 +142,7 @@ if os.path.exists(ucfg.tdx['csv_day']) or os.path.exists(ucfg.tdx['csv_index']):
         except  FileExistsError:
             pass
 else:
-    os.mkdir(ucfg.tdx['csv_day'])
+    os.mkdir(ucfg.tdx['csv_lday'])
     os.mkdir(ucfg.tdx['csv_index'])
 
 # 处理沪市股票
@@ -152,7 +152,7 @@ for f in file_list:
     # 处理沪市sh6开头文件，否则跳过此次循环
     if f[0:3] == 'sh6':
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_day'])
+        day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 used_time['sh_endtime'] = time.time()
 
 # 处理深市股票
@@ -161,7 +161,7 @@ used_time['sz_begintime'] = time.time()
 for f in file_list:
     if f[0:4] == 'sz00' or f[0:4] == 'sz30':  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_day'])
+        day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 used_time['sz_endtime'] = time.time()
 
 # 处理指数文件

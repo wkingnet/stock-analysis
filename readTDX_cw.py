@@ -84,8 +84,21 @@ for zipfile_filename in local_zipfile_list:
 print(f'专业财务文件检查更新完成')
 
 # 解密通达信股本变迁文件
-print(f'开始解密通达信gbbq股本变迁文件')
-filepath = ucfg.tdx['tdx_path'] + os.sep + 'T0002/hq_cache/gbbq'
+category = {
+    '1': '除权除息', '2': '送配股上市', '3': '非流通股上市', '4': '未知股本变动', '5': '股本变化',
+    '6': '增发新股', '7': '股份回购', '8': '增发新股上市', '9': '转配股上市', '10': '可转债上市',
+    '11': '扩缩股', '12': '非流通股缩股', '13': '送认购权证', '14': '送认沽权证'}
+print(f'解密通达信gbbq股本变迁文件')
+filepath = ucfg.tdx['tdx_path'] + '/T0002/hq_cache/gbbq'
 df_gbbq = pytdx.reader.gbbq_reader.GbbqReader().get_df(filepath)
-df_gbbq.to_csv('d:/gbbq.csv', encoding='gbk', index=True)
+df_gbbq.drop(columns=['market'], inplace=True)
+df_gbbq.columns = ['code', '权息日', '类别',
+                   '分红-前流通盘', '配股价-前总股本', '送转股-后流通盘', '配股-后总股本']
+df_gbbq['类别'] = df_gbbq['类别'].astype('object')
+df_gbbq['code'] = df_gbbq['code'].astype('object')
+for i in range(df_gbbq.shape[0]):
+    df_gbbq.iat[i, df_gbbq.columns.get_loc("类别"), ] = category[str(df_gbbq.iat[i, df_gbbq.columns.get_loc("类别")])]
+df_gbbq.to_csv(ucfg.tdx['csv_cw'] + os.sep + 'gbbq.csv', encoding='gbk', index=False)
+# 如果读取，使用下行命令
+# df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': 'object'})
 print(f'股本变迁解密完成 已用{(time.time() - starttime_tick):>5.2f}秒')
