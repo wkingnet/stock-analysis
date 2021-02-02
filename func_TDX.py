@@ -135,12 +135,13 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
     股票周期数据复权处理函数
     :param code:str格式，具体股票代码
     :param df_code:DF格式，未除权的具体股票日线数据。DF自动生成的数字索引，列定义：date,open,high,low,close,vol,amount
-    :param df_gbbq:DF格式，通达信导出的全股票全日期股本变迁数据。
-    :param start_date:要截取的起始日期。默认为空。格式"2020-10-10"
-    :param end_date:要截取的截止日期。默认为空。格式"2020-10-10"
-    :param fqtype:复权类型。默认前复权。
+    :param df_gbbq:DF格式，通达信导出的全股票全日期股本变迁数据。DF读取gbbq文件必须加入dtype={'code': str}参数，否则股票代码开头0会忽略
+    :param start_date:可选，要截取的起始日期。默认为空。格式"2020-10-10"
+    :param end_date:可选，要截取的截止日期。默认为空。格式"2020-10-10"
+    :param fqtype:可选，复权类型。默认前复权。
     :return:复权后的DF格式股票日线数据
     """
+
     '''以下是从https://github.com/rainx/pytdx/issues/78#issuecomment-335668322 提取学习的前复权代码
     import datetime
 
@@ -170,24 +171,24 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
                                         'qianzongguben': 'shares_before'}) \
             .set_index('date', drop=False, inplace=False)
         xdxr_data = data.assign(date=data['date'].apply(lambda x: str(x)[0:10]))  # 该股的股本变迁DF处理完成
-        info = xdxr_data[xdxr_data['category'] == 1]  # 提取只有除权除息的行保存到DF info
-        # print(info)
+        df_gbbq = xdxr_data[xdxr_data['category'] == 1]  # 提取只有除权除息的行保存到DF df_gbbq
+        # print(df_gbbq)
 
         # 从服务器读取该股的全部历史不复权K线数据，保存到data表，  只包括 日期、开高低收、成交量、成交金额数据
         data = pd.concat([api.to_df(api.get_security_bars(9, 0, '000001', (9 - i) * 800, 800)) for i in range(10)], axis=0)
 
         # 从data表加工数据，保存到bfq_data表
-        bfq_data = data \
+        df_code = data \
             .assign(date=pd.to_datetime(data['datetime'].apply(lambda x: x[0:10]))) \
             .assign(code=str('000001')) \
             .set_index('date', drop=False, inplace=False) \
             .drop(['year', 'month', 'day', 'hour',
                    'minute', 'datetime'], axis=1)
-        bfq_data['if_trade'] = True
+        df_code['if_trade'] = True
         # 不复权K线数据处理完成，保存到bfq_data表
 
         # 提取info表的category列的值，按日期一一对应，列拼接到bfq_data表。也就是标识出当日是除权除息日的行
-        data = pd.concat([bfq_data, info[['category']][bfq_data.index[0]:]], axis=1)
+        data = pd.concat([df_code, df_gbbq[['category']][df_code.index[0]:]], axis=1)
         # print(data)
 
         data['date'] = data.index
@@ -196,8 +197,8 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
 
         # 提取info表的'fenhong', 'peigu', 'peigujia',‘songzhuangu'列的值，按日期一一对应，列拼接到data表。
         # 也就是将当日是除权除息日的行，对应的除权除息数据，写入对应的data表的行。
-        data = pd.concat([data, info[['fenhong', 'peigu', 'peigujia',
-                                      'songzhuangu']][bfq_data.index[0]:]], axis=1)
+        data = pd.concat([data, df_gbbq[['fenhong', 'peigu', 'peigujia',
+                                      'songzhuangu']][df_code.index[0]:]], axis=1)
         data = data.fillna(0)  # 无效值填空0
 
         data['preclose'] = (data['close'].shift(1) * 10 - data['fenhong'] + data['peigu']
@@ -215,23 +216,20 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
             .assign(date=data['date'].apply(lambda x: str(x)[0:10]))
         print(result)
     '''
-    from datetime import datetime
-    # 提取只有除权除息的行保存到DF info
-    df_gbbq['code'] = df_gbbq['code'].astype(str)
-    info = df_gbbq.loc[(df_gbbq['类别'] == '除权除息') & (df_gbbq['code'] == code)]
+    # 提取只有除权除息的行保存到DF df_gbbq
+    df_gbbq = df_gbbq.loc[(df_gbbq['类别'] == '除权除息') & (df_gbbq['code'] == code)]
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04 为了按日期一一对应拼接
-    info = info.assign(date=pd.to_datetime(info['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
-    info.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
-    info['category'] = 1.0  # 添加category列
+    df_gbbq = df_gbbq.assign(date=pd.to_datetime(df_gbbq['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
+    df_gbbq.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
+    df_gbbq['category'] = 1.0  # 添加category列
 
-    bfq_data = df_code
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04  为了按日期一一对应拼接
-    bfq_data['date'] = pd.to_datetime(bfq_data['date'], format='%Y%m%d')
-    bfq_data.set_index('date', drop=True, inplace=True)
-    bfq_data['if_trade'] = True
+    df_code['date'] = pd.to_datetime(df_code['date'], format='%Y%m%d')
+    df_code.set_index('date', drop=True, inplace=True)
+    df_code['if_trade'] = True
 
     # 提取info表的category列的值，按日期一一对应，列拼接到bfq_data表。也就是标识出当日是除权除息日的行
-    data = pd.concat([bfq_data, info[['category']][bfq_data.index[0]:]], axis=1)
+    data = pd.concat([df_code, df_gbbq[['category']][df_code.index[0]:]], axis=1)
     # print(data)
 
     data['if_trade'].fillna(value=False, inplace=True)  # if_trade列，无效的值填充为False
@@ -239,28 +237,30 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
 
     # 提取info表的'fenhong', 'peigu', 'peigujia',‘songzhuangu'列的值，按日期一一对应，列拼接到data表。
     # 也就是将当日是除权除息日的行，对应的除权除息数据，写入对应的data表的行。
-    data = pd.concat([data, info[['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
-                                  '送转股-后流通盘']][bfq_data.index[0]:]], axis=1)
+    data = pd.concat([data, df_gbbq[['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
+                                  '送转股-后流通盘']][df_code.index[0]:]], axis=1)
     data = data.fillna(0)  # 无效值填空0
     data['preclose'] = (data['close'].shift(1) * 10 - data['分红-前流通盘'] + data['配股-后总股本']
                         * data['配股价-前总股本']) / (10 + data['配股-后总股本'] + data['送转股-后流通盘'])
     data['adj'] = (data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod()  # 计算每日复权因子
-    data['open'] = data['open'] * data['adj']
-    data['high'] = data['high'] * data['adj']
-    data['low'] = data['low'] * data['adj']
-    data['close'] = data['close'] * data['adj']
-    data['preclose'] = data['preclose'] * data['adj']
+    data['open'] = (data['open'] * data['adj'])
+    data['high'] = (data['high'] * data['adj'])
+    data['low'] = (data['low'] * data['adj'])
+    data['close'] = (data['close'] * data['adj'])
+    # data['preclose'] = data['preclose'] * data['adj']  # 这行没用了
+    data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, })  # 指定列四舍五入
     data = data[data['if_trade']]
 
     # 抛弃过程处理行，按传入参数切片数据
     data = data.drop(['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
-                      '送转股-后流通盘', 'if_trade', 'category'], axis=1)[data['open'] != 0]
+                      '送转股-后流通盘', 'if_trade', 'category', 'preclose', 'adj'], axis=1)[data['open'] != 0]
     if len(start_date) == 0 and len(end_date) == 0:
-        result = data
+        pass
     elif len(start_date) != 0 and len(end_date) == 0:
-        result = data[start_date:]
+        data = data[start_date:]
     elif len(start_date) == 0 and len(end_date) != 0:
-        result = data[:end_date]
+        data = data[:end_date]
     elif len(start_date) != 0 and len(end_date) != 0:
-        result = data[start_date:end_date]
-    return result
+        data = data[start_date:end_date]
+    data = data.reset_index()
+    return data

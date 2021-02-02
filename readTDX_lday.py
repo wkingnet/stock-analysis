@@ -14,9 +14,11 @@
 """
 import os
 import time
+import pandas as pd
 from struct import unpack
 from decimal import Decimal  # 用于浮点数四舍五入
 
+import func_TDX
 import user_config as ucfg
 
 # 变量初始化
@@ -50,7 +52,7 @@ def day2csv(source_dir, file_name, target_dir):
     source_file.close()
     source_size = os.path.getsize(source_path)  # 获取源文件大小
     source_row_number = int(source_size / 32)
-    user_debug('源文件行数', source_row_number)
+    # user_debug('源文件行数', source_row_number)
 
     # 打开目标文件，后缀名为CSV
     target_path = target_dir + os.sep + file_name[2:-4] + '.csv'  # 目标文件包含文件名的路径
@@ -179,3 +181,14 @@ used_time['index_endtime'] = time.time()
 print('沪市处理完毕，用时' + str(int(used_time['sh_endtime'] - used_time['sh_begintime'])) + '秒')
 print('深市处理完毕，用时' + str(int(used_time['sz_endtime'] - used_time['sz_begintime'])) + '秒')
 print('指数文件处理完毕，用时' + str(int(used_time['index_endtime'] - used_time['index_begintime'])) + '秒')
+
+starttime_tick = time.time()
+file_list = os.listdir(ucfg.tdx['csv_lday'])
+df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
+for filename in file_list:
+    process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=0, encoding='gbk')
+    df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq)
+    df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
+    print(f'{process_info} 完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
+          f'{int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))}秒')
