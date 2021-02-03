@@ -47,6 +47,104 @@ def LLV(value, day):
     return value
 
 
+# debug输出函数
+def user_debug(print_str, print_value='', ):
+    """第一个参数为变量名称，第二个参数为变量的值"""
+    if ucfg.debug == 1:
+        if print_value:
+            print(str(print_str) + ' = ' + str(print_value))
+        else:
+            print(str(print_str))
+
+
+# 将通达信的日线文件转换成CSV格式保存函数。通达信数据文件32字节为一组。
+def day2csv(source_dir, file_name, target_dir):
+    """
+    将通达信的日线文件转换成CSV格式保存函数。通达信数据文件32字节为一组
+    :param source_dir: str 源文件路径
+    :param file_name: str 文件名
+    :param target_dir: str 要保存的路径
+    :return: none
+    """
+    from struct import unpack
+    from decimal import Decimal  # 用于浮点数四舍五入
+
+    # 以二进制方式打开源文件
+    source_path = source_dir + os.sep + file_name  # 源文件包含文件名的路径
+    source_file = open(source_path, 'rb')
+    buf = source_file.read()  # 读取源文件保存在变量中
+    source_file.close()
+    source_size = os.path.getsize(source_path)  # 获取源文件大小
+    source_row_number = int(source_size / 32)
+    # user_debug('源文件行数', source_row_number)
+
+    # 打开目标文件，后缀名为CSV
+    target_path = target_dir + os.sep + file_name[2:-4] + '.csv'  # 目标文件包含文件名的路径
+    # user_debug('target_path', target_path)
+
+    if not os.path.isfile(target_path):
+        # 目标文件不存在。写入表头行。begin从0开始转换
+        target_file = open(target_path, 'w', encoding="utf-8")  # 以覆盖写模式打开文件
+        header = ',' + str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
+                 + str('close') + ',' + str('vol') + ',' + str('amount')
+        target_file.write(header)
+        begin = 0
+        end = begin + 32
+        row_number = 0
+    else:
+        # 不为0，文件有内容。行附加。
+        # 通达信数据32字节为一组，因此通达信文件大小除以32可算出通达信文件有多少行（也就是多少天）的数据。
+        # 再用readlines计算出目标文件已有多少行（目标文件多了首行标题行），(行数-1)*32 即begin要开始的字节位置
+
+        target_file = open(target_path, 'a+', encoding="utf-8")  # 以追加读写模式打开文件
+        # target_size = os.path.getsize(target_path)  #获取目标文件大小
+
+        # 由于追加读写模式载入文件后指针在文件的结尾，需要先把指针改到文件开头，读取文件行数。
+        user_debug('当前指针', target_file.tell())
+        target_file.seek(0, 0)  # 文件指针移到文件头
+        user_debug('移动指针到开头', target_file.seek(0, 0))
+        target_file_content = target_file.readlines()  # 逐行读取文件内容
+        row_number = len(target_file_content)  # 获得文件行数
+        user_debug('目标文件行数', row_number)
+        user_debug('目标文件最后一行的数据', target_file_content[-1])
+        target_file.seek(0, 2)  # 文件指针移到文件尾
+        user_debug('移动指针到末尾', target_file.seek(0, 2))
+        if row_number > source_row_number:
+            user_debug('已是最新数据，跳过for循环')
+        else:
+            print('追加模式，从' + str(row_number + 1) + '行开始')
+
+        if row_number == 0:  # 如果文件出错是0的特殊情况
+            begin = 0
+        else:
+            row_number = row_number - 1  # 由于pandas的dataFrame格式索引从0开始，为下面for循环需要减1
+            begin = row_number * 32
+
+        end = begin + 32
+
+    for i in range(row_number, source_row_number):
+        # 由于pandas的dataFrame格式首行为标题行，第二行的索引从0开始，
+        # 因此转换出来显示的行数比原本少一行，但实际数据一致
+        #
+        # 将字节流转换成Python数据格式
+        # I: unsigned int
+        # f: float
+        # a[5]浮点类型的成交金额，使用decimal类四舍五入为整数
+        a = unpack('IIIIIfII', buf[begin:end])
+        line = '\n' + str(i) + ',' \
+               + str(a[0]) + ',' \
+               + str(a[1] / 100.0) + ',' \
+               + str(a[2] / 100.0) + ',' \
+               + str(a[3] / 100.0) + ',' \
+               + str(a[4] / 100.0) + ',' \
+               + str(a[6]) + ',' \
+               + str(Decimal(a[5]).quantize(Decimal("1."), rounding="ROUND_HALF_UP"))
+        target_file.write(line)
+        begin += 32
+        end += 32
+    target_file.close()
+
+
 def get_TDX_blockfilecontent(filename):
     """
     读取本机通达信板块文件，获取文件内容
@@ -60,6 +158,42 @@ def get_TDX_blockfilecontent(filename):
         df = block_reader.BlockReader().get_df(filepath)
     else:
         print("user_config文件的tdx_path变量未配置，或未找到" + filename + "文件")
+    return df
+
+
+def get_lastest_stocklist():
+    """
+    使用pytdx从网络获取最新券商列表
+    :return:DF格式，股票清单
+    """
+    import pytdx.hq
+    import pytdx.util.best_ip
+    print(f'优选通达信行情服务器')
+    ipinfo = pytdx.util.best_ip.select_best_ip()
+    api = pytdx.hq.TdxHq_API()
+    with api.connect(ipinfo['ip'], ipinfo['port']):
+        data = pd.concat([pd.concat(
+            [api.to_df(api.get_security_list(j, i * 1000)).assign(sse='sz' if j == 0 else 'sh') for i in
+             range(int(api.get_security_count(j) / 1000) + 1)], axis=0) for j in range(2)], axis=0)
+    data = data.reindex(columns=['sse', 'code', 'name', 'pre_close', 'volunit', 'decimal_point'])
+    data.sort_values(by=['sse', 'code'], ascending=True, inplace=True)
+    data = data.reset_index()
+    # 这个方法不行 字符串不能运算大于小于，转成int更麻烦
+    # df = data.loc[((data['sse'] == 'sh') & ((data['code'] >= '600000') | (data['code'] < '700000'))) | \
+    #              ((data['sse'] == 'sz') & ((data['code'] >= '000001') | (data['code'] < '100000'))) | \
+    #              ((data['sse'] == 'sz') & ((data['code'] >= '300000') | (data['code'] < '309999')))]
+    sh_start_num = data[(data['sse'] == 'sh') & (data['code'] == '600000')].index.tolist()[0]
+    sh_end_num = data[(data['sse'] == 'sh') & (data['code'] == '706070')].index.tolist()[0]
+    sz00_start_num = data[(data['sse'] == 'sz') & (data['code'] == '000001')].index.tolist()[0]
+    sz00_end_num = data[(data['sse'] == 'sz') & (data['code'] == '100303')].index.tolist()[0]
+    sz30_start_num = data[(data['sse'] == 'sz') & (data['code'] == '300001')].index.tolist()[0]
+    sz30_end_num = data[(data['sse'] == 'sz') & (data['code'] == '395001')].index.tolist()[0]
+
+    df_sh = data.iloc[sh_start_num:sh_end_num]
+    df_sz00 = data.iloc[sz00_start_num:sz00_end_num]
+    df_sz30 = data.iloc[sz30_start_num:sz30_end_num]
+
+    df = pd.concat([df_sh, df_sz00, df_sz30])
     return df
 
 
@@ -116,7 +250,7 @@ def dowload_url(url):
     return response_obj
 
 
-def list_local_cwfile(ext_name):
+def list_localTDX_cwfile(ext_name):
     """
     列出本地已有的专业财务文件。返回文件列表
     :param ext_name: str类型。文件扩展名。返回指定扩展名的文件列表
@@ -132,18 +266,35 @@ def list_local_cwfile(ext_name):
     return cw_filelist
 
 
-def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
+def readall_local_cwfile():
+    """
+    将全部财报文件读到df_cw字典里。会占用1G内存，但处理速度比遍历CSV方式快很多
+    :return: 字典形式，所有财报内容。
+    """
+    print(f'开始读取所有财报文件 会占用1G内存 预计需要1分钟')
+    dict = {}
+    cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
+    starttime_tick = time.time()
+    for cwfile in cwfile_list:
+        if os.path.getsize(ucfg.tdx['csv_cw'] + os.sep + cwfile) != 0:
+            dict[cwfile[4:-4]] = (pd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
+                                              index_col=0, header=None, encoding='gbk', dtype={1: str}))
+    print(f'读取所有财报文件完成 用时{(time.time() - starttime_tick):.2f}秒')
+    return dict
+
+
+def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype='qfq'):
     """
     股票周期数据复权处理函数
     :param code:str格式，具体股票代码
     :param df_code:DF格式，未除权的具体股票日线数据。DF自动生成的数字索引，列定义：date,open,high,low,close,vol,amount
     :param df_gbbq:DF格式，通达信导出的全股票全日期股本变迁数据。DF读取gbbq文件必须加入dtype={'code': str}参数，否则股票代码开头0会忽略
+    :param df_cw:DF格式，读入内存的全部财务文件
     :param start_date:可选，要截取的起始日期。默认为空。格式"2020-10-10"
     :param end_date:可选，要截取的截止日期。默认为空。格式"2020-10-10"
     :param fqtype:可选，复权类型。默认前复权。
     :return:复权后的DF格式股票日线数据
     """
-    import csv
 
     '''以下是从https://github.com/rainx/pytdx/issues/78#issuecomment-335668322 提取学习的前复权代码
     import datetime
@@ -259,39 +410,33 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
                       '送转股-后流通盘', 'if_trade', 'category', 'preclose', 'adj'], axis=1)[data['open'] != 0]
     # 复权处理完成
 
+    # 如果没有传参进来，就自己读取财务文件，否则用传参的值
+    if df_cw == '':
+        cw_dict = readall_local_cwfile()
+    else:
+        cw_dict = df_cw
+
     # 计算换手率
-    starttime_tick = time.time()
-    cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # 遍历cw目录 生成文件名列表
-    for cwfile in cwfile_list:  # 遍历所有文件
-        cwfile_date = str(cwfile[4:-4])
-        with open(ucfg.tdx['csv_cw'] + os.sep + cwfile) as fileobj:
-            csvobj = csv.reader(fileobj)
-            starttime_tick = time.time()
-            for row in csvobj:  # 按行遍历CSV
-                if row[1] == code:  # 如果第一列等于要找的股票
-                    # 财务文件字段的对应列需+1
-                    # print(f'{cwfile_date} 总股本:{row[239]} 流通股本:{row[267]}')
-                    starttime_tick = time.time()
-                    if row[267] == '0' or row[267] == '0.0':  # 如果csv文件的流通股值是0，退出CSV for循环 也就是打开下一个gpcw文件
-                        break
-                    while True:
-                        try:  # 尝试日期对应行是否存在，不存在会抛出异常
-                            data.loc[cwfile_date]
-                        except:  # 日期对应行不存在
-                            cwfile_date = datetime.datetime.strptime(cwfile_date, '%Y%m%d')  # 字符串转日期格式
-                            cwfile_date = cwfile_date + datetime.timedelta(days=1)  # 加1天
-                            cwfile_date = cwfile_date.strftime('%Y%m%d')  # 日期转字符串
-                        else:
-                            data.at[cwfile_date, '流通股'] = float(row[267])
-                            break  # 退出while循环
-                    print(f'while完成 用时{(time.time() - starttime_tick):.2f}秒')
-                    break  # 退出CSV for循环
-            print(f'遍历CSV完成 用时{(time.time() - starttime_tick):.2f}秒')
-    print(f'导入财报完成 用时{(time.time() - starttime_tick):.2f}秒')
-    data = data.fillna(method='ffill')  # 向下填充无效值
-    data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
-    data['流通市值'] = data['流通股'] * data['close']
-    data['换手率%'] = data['vol'] / data['流通股'] * 100
+    # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
+    e_date = '20990101'
+    not_newstock = False  # 设置是否为新股的标志，如果循环完还是False，说明财报没有数据
+    for cw_date, cw_df in cw_dict.items():  # 遍历财报字典  cw_date=财报日期  cw_df=具体的财报内容
+        # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环
+        # (cw_df[1] == code).any() 表示当前股票code在财务DF里有数据
+        if data.index[0].strftime('%Y%m%d') <= cw_date and (cw_df[1] == code).any():
+            code_df_index = cw_df[cw_df[1] == code].index.to_list()[0]  # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
+            # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
+            # print(f'{cwfile_date} 总股本:{cw_df.iat[code_df_index,238]} 流通股本:{cw_df.iat[code_df_index,266]}')
+            # 如果流通股值是0，则进行下一次循环
+            if cw_df.iat[code_df_index, 266] != '0' or cw_df.iat[code_df_index, 266] != '0.0':
+                data.loc[cw_date:e_date, '流通股'] = float(cw_df.iat[code_df_index, 266])
+                not_newstock = True
+
+    if not_newstock:
+        data = data.fillna(method='ffill')  # 向下填充无效值
+        data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
+        data['流通市值'] = data['流通股'] * data['close']
+        data['换手率%'] = data['vol'] / data['流通股'] * 100
 
     if len(start_date) == 0 and len(end_date) == 0:
         pass
@@ -307,5 +452,6 @@ def make_fq(code, df_code, df_gbbq, start_date='', end_date='', fqtype='qfq'):
 
 if __name__ == '__main__':
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + '000001.csv', index_col=0, encoding='gbk')
-    df_qfq = make_fq('000001', df_bfq, df_gbbq)
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + '000939.csv', index_col=0, encoding='gbk')
+    df_qfq = make_fq('000939', df_bfq, df_gbbq)
+

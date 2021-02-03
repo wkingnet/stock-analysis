@@ -42,7 +42,7 @@ tdx_txt_df = [l.strip().split(",") for l in tdx_txt_df]  # 用,分割，二维�
 tdx_txt_df = pd.DataFrame(tdx_txt_df, columns=['filename', 'md5', 'filesize'])  # 转为df格式，好比较
 
 # 检查本机文件是否有缺失
-local_zipfile_list = func_TDX.list_local_cwfile('zip')  # 获取本机已有文件
+local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 for df_filename in tdx_txt_df['filename'].tolist():
     if df_filename not in local_zipfile_list:
         print(f'{df_filename} 本机不存在 开始下载')
@@ -60,7 +60,7 @@ for df_filename in tdx_txt_df['filename'].tolist():
         print(f'{df_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
 
 # 检查本机文件是否需要更新
-local_zipfile_list = func_TDX.list_local_cwfile('zip')  # 获取本机已有文件
+local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 for zipfile_filename in local_zipfile_list:
     local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + zipfile_filename
     with open(local_zipfile_path, 'rb') as fobj:  # 读取本机zip文件，计算md5
