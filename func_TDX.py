@@ -168,16 +168,17 @@ def get_lastest_stocklist():
     """
     import pytdx.hq
     import pytdx.util.best_ip
-    print(f'优选通达信行情服务器')
-    ipinfo = pytdx.util.best_ip.select_best_ip()
+    print(f"优选通达信行情服务器 也可直接更改为优选好的 {{'ip': '123.125.108.24', 'port': 7709}}")
+    # ipinfo = pytdx.util.best_ip.select_best_ip()
     api = pytdx.hq.TdxHq_API()
-    with api.connect(ipinfo['ip'], ipinfo['port']):
+    # with api.connect(ipinfo['ip'], ipinfo['port']):
+    with api.connect('123.125.108.24', 7709):
         data = pd.concat([pd.concat(
             [api.to_df(api.get_security_list(j, i * 1000)).assign(sse='sz' if j == 0 else 'sh') for i in
              range(int(api.get_security_count(j) / 1000) + 1)], axis=0) for j in range(2)], axis=0)
     data = data.reindex(columns=['sse', 'code', 'name', 'pre_close', 'volunit', 'decimal_point'])
     data.sort_values(by=['sse', 'code'], ascending=True, inplace=True)
-    data = data.reset_index()
+    data.reset_index(drop=True, inplace=True)
     # 这个方法不行 字符串不能运算大于小于，转成int更麻烦
     # df = data.loc[((data['sse'] == 'sh') & ((data['code'] >= '600000') | (data['code'] < '700000'))) | \
     #              ((data['sse'] == 'sz') & ((data['code'] >= '000001') | (data['code'] < '100000'))) | \
@@ -194,6 +195,7 @@ def get_lastest_stocklist():
     df_sz30 = data.iloc[sz30_start_num:sz30_end_num]
 
     df = pd.concat([df_sh, df_sz00, df_sz30])
+    df.reset_index(drop=True, inplace=True)
     return df
 
 
