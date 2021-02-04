@@ -10,6 +10,7 @@ import os
 import statistics
 import time
 import datetime
+import numpy as np
 import pandas as pd
 from retry import retry
 import user_config as ucfg
@@ -85,7 +86,7 @@ def day2csv(source_dir, file_name, target_dir):
     if not os.path.isfile(target_path):
         # 目标文件不存在。写入表头行。begin从0开始转换
         target_file = open(target_path, 'w', encoding="utf-8")  # 以覆盖写模式打开文件
-        header = ',' + str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
+        header = str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
                  + str('close') + ',' + str('vol') + ',' + str('amount')
         target_file.write(header)
         begin = 0
@@ -96,7 +97,7 @@ def day2csv(source_dir, file_name, target_dir):
         # 通达信数据32字节为一组，因此通达信文件大小除以32可算出通达信文件有多少行（也就是多少天）的数据。
         # 再用readlines计算出目标文件已有多少行（目标文件多了首行标题行），(行数-1)*32 即begin要开始的字节位置
 
-        target_file = open(target_path, 'a+', encoding="utf-8")  # 以追加读写模式打开文件
+        target_file = open(target_path, 'a+', encoding="gbk")  # 以追加读写模式打开文件
         # target_size = os.path.getsize(target_path)  #获取目标文件大小
 
         # 由于追加读写模式载入文件后指针在文件的结尾，需要先把指针改到文件开头，读取文件行数。
@@ -131,8 +132,10 @@ def day2csv(source_dir, file_name, target_dir):
         # f: float
         # a[5]浮点类型的成交金额，使用decimal类四舍五入为整数
         a = unpack('IIIIIfII', buf[begin:end])
-        line = '\n' + str(i) + ',' \
-               + str(a[0]) + ',' \
+        # '\n' + str(i) + ','
+        # a[0]  将’19910404'样式的字符串转为'1991-05-05'格式的字符串。为了统一日期格式
+        a_date = str(a[0])[0:4] + '-' + str(a[0])[4:6] + '-' + str(a[0])[6:8]
+        line = '\n' + str(a_date) + ',' \
                + str(a[1] / 100.0) + ',' \
                + str(a[2] / 100.0) + ',' \
                + str(a[3] / 100.0) + ',' \
@@ -273,7 +276,7 @@ def readall_local_cwfile():
     将全部财报文件读到df_cw字典里。会占用1G内存，但处理速度比遍历CSV方式快很多
     :return: 字典形式，所有财报内容。
     """
-    print(f'开始读取所有财报文件 会占用1G内存 预计需要1分钟')
+    print(f'开始载入所有财报文件到内存 会占用1G内存 预计需要30秒')
     dict = {}
     cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
     starttime_tick = time.time()
@@ -372,19 +375,53 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
             .assign(date=data['date'].apply(lambda x: str(x)[0:10]))
         print(result)
     '''
+
+    # 先进行判断。如果有adj列，且没有NaN值，表示此股票数据已处理完成，无需处理。直接返回。
+    # 如果没有‘adj'列，表示没进行过复权处理，当作新股处理
+    if 'adj' in df_code.columns.to_list():
+        if True in df_code['adj'].isna().to_list():
+            first_index = np.where(df_code.isna())[0][0]  # 有NaN值，设为第一个NaN值所在的行
+        else:
+            return ""
+    else:
+        first_index = 0
+
     # 提取只有除权除息的行保存到DF df_gbbq
     df_gbbq = df_gbbq.loc[(df_gbbq['类别'] == '除权除息') & (df_gbbq['code'] == code)]
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04 为了按日期一一对应拼接
     df_gbbq = df_gbbq.assign(date=pd.to_datetime(df_gbbq['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
     df_gbbq.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
     df_gbbq['category'] = 1.0  # 添加category列
+    if len(df_gbbq) > 0:  # =0表示股本变迁中没有该股的除权除息信息。gbbq_lastest_date设置为今天，当作新股处理
+        gbbq_lastest_date = df_gbbq.index[-1].strftime('%Y-%m-%d')  # 提取最新的除权除息日
+    else:
+        gbbq_lastest_date = str(datetime.date.today())
+
+    # 判断df_code是否已有历史数据，是追加数据还是重新生成。
+    # 如果gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list()，表示未更新数据中不包括除权除息日
+    # 由于前复权的特性，除权后历史数据都要变。因此未更新数据中不包括除权除息日，只需要计算未更新数据。否则日线数据需要全部重新计算
+    # 如果'adj'在df_code的列名单里，表示df_code是已复权过的，只需追加新数据，否则日线数据还是需要全部重新计算
+    flag_is_attach = False
+    if gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list():
+        if {'adj'}.issubset(df_code.columns):
+            flag_is_attach = True  # 确定为追加模式
+            df_code_original = df_code  # 原始code备份为df_code_original，最后合并
+            df_code = df_code.iloc[first_index:]  # 切片df_code，只保留需要处理的行
+            df_code.reset_index(drop=True, inplace=True)
+            df_code_original.dropna(how='any', inplace=True)  # 丢掉缺失数据的行，之后直接append新数据就行。比merge简单。
+            df_code_original['date'] = pd.to_datetime(df_code_original['date'], format='%Y-%m-%d')  # 转为时间格式
+            df_code_original.set_index('date', drop=True, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
+            # 由于无需搜索财报，所以直接把流通股的值复制过来。后面也直接跳过找财报代码。代码会警告，暂时无法解决
+            with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
+                df_code['流通股'] = df_code_original.at[df_code_original.index[first_index-1], '流通股']
 
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04  为了按日期一一对应拼接
-    df_code['date'] = pd.to_datetime(df_code['date'], format='%Y%m%d')
+    with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
+        df_code['date'] = pd.to_datetime(df_code['date'], format='%Y-%m-%d')
     df_code.set_index('date', drop=True, inplace=True)
-    df_code['if_trade'] = True
+    df_code.insert(df_code.shape[1], 'if_trade', True)  # 插入if_trade列，赋值True
 
-    # 提取info表的category列的值，按日期一一对应，列拼接到bfq_data表。也就是标识出当日是除权除息日的行
+    # 提取df_gbbq表的category列的值，按日期一一对应，列拼接到bfq_data表。也就是标识出当日是除权除息日的行
     data = pd.concat([df_code, df_gbbq[['category']][df_code.index[0]:]], axis=1)
     # print(data)
 
@@ -398,47 +435,53 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     data = data.fillna(0)  # 无效值填空0
     data['preclose'] = (data['close'].shift(1) * 10 - data['分红-前流通盘'] + data['配股-后总股本']
                         * data['配股价-前总股本']) / (10 + data['配股-后总股本'] + data['送转股-后流通盘'])
-    data['adj'] = (data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod()  # 计算每日复权因子
+    # 计算每日复权因子 前复权最近一次股本变迁的复权因子为1
+    data['adj'] = (data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod()
     data['open'] = data['open'] * data['adj']
     data['high'] = data['high'] * data['adj']
     data['low'] = data['low'] * data['adj']
     data['close'] = data['close'] * data['adj']
     # data['preclose'] = data['preclose'] * data['adj']  # 这行没用了
-    data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, })  # 指定列四舍五入
-    data = data[data['if_trade']]
+    data = data[data['if_trade']]  # 重建整个表，只保存if_trade列=true的行
 
-    # 抛弃过程处理行
+    # 抛弃过程处理行，且open值不等于0的行
     data = data.drop(['分红-前流通盘', '配股-后总股本', '配股价-前总股本',
-                      '送转股-后流通盘', 'if_trade', 'category', 'preclose', 'adj'], axis=1)[data['open'] != 0]
+                      '送转股-后流通盘', 'if_trade', 'category', 'preclose'], axis=1)[data['open'] != 0]
     # 复权处理完成
 
-    # 如果没有传参进来，就自己读取财务文件，否则用传参的值
-    if df_cw == '':
-        cw_dict = readall_local_cwfile()
-    else:
-        cw_dict = df_cw
+    flag_not_newstock = False  # 设置是否为新股的标志，如果财报循环完还是False，说明财报没有该股数据。后面的流通市值无法计算
+    if not flag_is_attach:  # 是否追加数据模式。如果是追加数据，则不需要查找财报
+        # 如果没有传参进来，就自己读取财务文件，否则用传参的值
+        if df_cw == '':
+            cw_dict = readall_local_cwfile()
+        else:
+            cw_dict = df_cw
 
-    # 计算换手率
-    # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
-    e_date = '20990101'
-    not_newstock = False  # 设置是否为新股的标志，如果循环完还是False，说明财报没有数据
-    for cw_date, cw_df in cw_dict.items():  # 遍历财报字典  cw_date=财报日期  cw_df=具体的财报内容
-        # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环
-        # (cw_df[1] == code).any() 表示当前股票code在财务DF里有数据
-        if data.index[0].strftime('%Y%m%d') <= cw_date and (cw_df[1] == code).any():
-            code_df_index = cw_df[cw_df[1] == code].index.to_list()[0]  # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
-            # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
-            # print(f'{cwfile_date} 总股本:{cw_df.iat[code_df_index,238]} 流通股本:{cw_df.iat[code_df_index,266]}')
-            # 如果流通股值是0，则进行下一次循环
-            if cw_df.iat[code_df_index, 266] != '0' or cw_df.iat[code_df_index, 266] != '0.0':
-                data.loc[cw_date:e_date, '流通股'] = float(cw_df.iat[code_df_index, 266])
-                not_newstock = True
+        # 计算换手率
+        # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
+        e_date = '20990101'
+        for cw_date in cw_dict:  # 遍历财报字典  cw_date=财报日期  cw_dict[cw_date]=具体的财报内容
+            # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环
+            # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
+            if data.index[0].strftime('%Y%m%d') <= cw_date and (cw_dict[cw_date][1] == code).any():
+                # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
+                code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
+                # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
+                # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]} 流通股本:{cw_dict[cw_date].iat[code_df_index,266]}')
+                # 如果流通股值是0，则进行下一次循环
+                if cw_dict[cw_date].iat[code_df_index, 266] != '0' or cw_dict[cw_date].iat[code_df_index, 266] != '0.0':
+                    data.loc[cw_date:e_date, '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 266])
+                    if not flag_not_newstock:
+                        flag_not_newstock = True
 
-    if not_newstock:
+    if flag_not_newstock or flag_is_attach:
         data = data.fillna(method='ffill')  # 向下填充无效值
         data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
         data['流通市值'] = data['流通股'] * data['close']
         data['换手率%'] = data['vol'] / data['流通股'] * 100
+        data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, '流通市值': 2, '换手率%': 2, })  # 指定列四舍五入
+        if flag_is_attach:  # 追加模式，则附加最新处理的数据
+            data = df_code_original.append(data)
 
     if len(start_date) == 0 and len(end_date) == 0:
         pass
@@ -448,12 +491,15 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         data = data[:end_date]
     elif len(start_date) != 0 and len(end_date) != 0:
         data = data[start_date:end_date]
-    data = data.reset_index()  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
+    data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
     return data
 
 
 if __name__ == '__main__':
+    stock_code = '000001'
+    day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + '000939.csv', index_col=0, encoding='gbk')
-    df_qfq = make_fq('000939', df_bfq, df_gbbq)
-
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
+    df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
+    if len(df_qfq) > 0:
+        df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')

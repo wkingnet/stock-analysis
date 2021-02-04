@@ -51,8 +51,18 @@ else:
     os.mkdir(ucfg.tdx['csv_index'])
 
 # 读取退市股票列表
-delisted_stocks = pd.read_csv('已退市股票列表.csv', encoding='gbk', dtype={'股票代码': str})
+delisted_stocks = pd.read_csv('util_docs/已退市股票列表.csv', encoding='gbk', dtype={'股票代码': str})
 delisted_stocks = delisted_stocks['股票代码'].tolist()
+
+# 处理深市股票
+file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
+[file_list.remove(i) for i in file_list[:] if i[2:-4] in delisted_stocks]  # 从列表里删除已退市股票
+used_time['sz_begintime'] = time.time()
+for f in file_list:
+    if f[0:4] == 'sz00' or f[0:4] == 'sz30':  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
+        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
+used_time['sz_endtime'] = time.time()
 
 # 处理沪市股票
 file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
@@ -64,16 +74,6 @@ for f in file_list:
         print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 used_time['sh_endtime'] = time.time()
-
-# 处理深市股票
-file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
-[file_list.remove(i) for i in file_list[:] if i[2:-4] in delisted_stocks]  # 从列表里删除已退市股票
-used_time['sz_begintime'] = time.time()
-for f in file_list:
-    if f[0:4] == 'sz00' or f[0:4] == 'sz30':  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
-        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
-used_time['sz_endtime'] = time.time()
 
 # 处理指数文件
 used_time['index_begintime'] = time.time()
@@ -99,9 +99,9 @@ df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype=
 cw_dict = func_TDX.readall_local_cwfile()
 for filename in file_list:
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=0, encoding='gbk')
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk')
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
-    df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
-
-    print(f'{process_info} 完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
+    if len(df_qfq) > 0:  # 返回值大于0，表示有更新
+        df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
+    print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
           f'{int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))}秒')
