@@ -51,7 +51,7 @@ def LLV(value, day):
 # debug输出函数
 def user_debug(print_str, print_value='', ):
     """第一个参数为变量名称，第二个参数为变量的值"""
-    if ucfg.debug == 1:
+    if ucfg.debug:
         if print_value:
             print(str(print_str) + ' = ' + str(print_value))
         else:
@@ -413,7 +413,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
             df_code_original.set_index('date', drop=True, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
             # 由于无需搜索财报，所以直接把流通股的值复制过来。后面也直接跳过找财报代码。代码会警告，暂时无法解决
             with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
-                df_code['流通股'] = df_code_original.at[df_code_original.index[first_index-1], '流通股']
+                df_code['流通股'] = df_code_original.at[df_code_original.index[first_index - 1], '流通股']
 
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04  为了按日期一一对应拼接
     with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告

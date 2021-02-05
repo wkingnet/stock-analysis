@@ -51,8 +51,9 @@ else:
     os.mkdir(ucfg.tdx['csv_index'])
 
 # 读取退市股票列表
-delisted_stocks = pd.read_csv('util_docs/已退市股票列表.csv', encoding='gbk', dtype={'股票代码': str})
-delisted_stocks = delisted_stocks['股票代码'].tolist()
+delisted_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_spec.cfg',
+                              sep='|', header=None, index_col=None, encoding='gbk', dtype={1: str})
+delisted_stocks = delisted_stocks[1].tolist()
 
 # 处理深市股票
 file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')

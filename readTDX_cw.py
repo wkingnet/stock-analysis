@@ -67,7 +67,7 @@ for zipfile_filename in local_zipfile_list:
         file_content = fobj.read()
         file_md5 = hashlib.md5(file_content).hexdigest()
     if file_md5 not in tdx_txt_df['md5'].tolist():  # 本机zip文件的md5与服务器端不一致
-        print(f'{zipfile_filename} 需要更新')
+        print(f'{zipfile_filename} 需要更新 开始下载')
         os.remove(local_zipfile_path)  # 删除本机zip文件
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + zipfile_filename
         download_obj = func_TDX.dowload_url(tdx_zipfile_url)  # 下载最新zip文件
