@@ -386,6 +386,10 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     else:
         first_index = 0
 
+    flag_attach = False  # True=追加数据模式  False=数据全部重新计算
+    # 设置新股标志。True=新股，False=旧股。新股跳过追加数据部分的代码。如果财报循环完还是True，说明该股至今无财报，也无法获取流通股本
+    flag_newstock = False
+
     # 提取只有除权除息的行保存到DF df_gbbq
     df_gbbq = df_gbbq.loc[(df_gbbq['类别'] == '除权除息') & (df_gbbq['code'] == code)]
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04 为了按日期一一对应拼接
@@ -396,15 +400,15 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         gbbq_lastest_date = df_gbbq.index[-1].strftime('%Y-%m-%d')  # 提取最新的除权除息日
     else:
         gbbq_lastest_date = str(datetime.date.today())
+        flag_newstock = True
 
     # 判断df_code是否已有历史数据，是追加数据还是重新生成。
     # 如果gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list()，表示未更新数据中不包括除权除息日
     # 由于前复权的特性，除权后历史数据都要变。因此未更新数据中不包括除权除息日，只需要计算未更新数据。否则日线数据需要全部重新计算
     # 如果'adj'在df_code的列名单里，表示df_code是已复权过的，只需追加新数据，否则日线数据还是需要全部重新计算
-    flag_is_attach = False
-    if gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list():
+    if gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list() and not flag_newstock:
         if {'adj'}.issubset(df_code.columns):
-            flag_is_attach = True  # 确定为追加模式
+            flag_attach = True  # 确定为追加模式
             df_code_original = df_code  # 原始code备份为df_code_original，最后合并
             df_code = df_code.iloc[first_index:]  # 切片df_code，只保留需要处理的行
             df_code.reset_index(drop=True, inplace=True)
@@ -449,8 +453,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
                       '送转股-后流通盘', 'if_trade', 'category', 'preclose'], axis=1)[data['open'] != 0]
     # 复权处理完成
 
-    flag_not_newstock = False  # 设置是否为新股的标志，如果财报循环完还是False，说明财报没有该股数据。后面的流通市值无法计算
-    if not flag_is_attach:  # 是否追加数据模式。如果是追加数据，则不需要查找财报
+    if not flag_attach:  # 是否追加数据模式。如果是追加数据，则不需要查找财报
         # 如果没有传参进来，就自己读取财务文件，否则用传参的值
         if df_cw == '':
             cw_dict = readall_local_cwfile()
@@ -461,7 +464,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
         e_date = '20990101'
         for cw_date in cw_dict:  # 遍历财报字典  cw_date=财报日期  cw_dict[cw_date]=具体的财报内容
-            # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环
+            # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环。有例外情况：003001
             # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
             if data.index[0].strftime('%Y%m%d') <= cw_date and (cw_dict[cw_date][1] == code).any():
                 # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
@@ -471,16 +474,17 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
                 # 如果流通股值是0，则进行下一次循环
                 if cw_dict[cw_date].iat[code_df_index, 266] != '0' or cw_dict[cw_date].iat[code_df_index, 266] != '0.0':
                     data.loc[cw_date:e_date, '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 266])
-                    if not flag_not_newstock:
-                        flag_not_newstock = True
+                    if flag_newstock:
+                        flag_newstock = False
 
-    if flag_not_newstock or flag_is_attach:
-        data = data.fillna(method='ffill')  # 向下填充无效值
-        data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
+    data = data.fillna(method='ffill')  # 向下填充无效值
+    data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
+    data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, })  # 指定列四舍五入
+    if not flag_newstock:
         data['流通市值'] = data['流通股'] * data['close']
         data['换手率%'] = data['vol'] / data['流通股'] * 100
-        data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, '流通市值': 2, '换手率%': 2, })  # 指定列四舍五入
-        if flag_is_attach:  # 追加模式，则附加最新处理的数据
+        data = data.round({'流通市值': 2, '换手率%': 2, })  # 指定列四舍五入
+        if flag_attach:  # 追加模式，则附加最新处理的数据
             data = df_code_original.append(data)
 
     if len(start_date) == 0 and len(end_date) == 0:
@@ -496,7 +500,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
 
 
 if __name__ == '__main__':
-    stock_code = '000001'
+    stock_code = '003001'
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')

@@ -22,7 +22,6 @@ import user_config as ucfg
 # 变量初始化
 used_time = {}  # 创建一个计时字典
 
-
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
 if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index']):
@@ -102,7 +101,11 @@ for filename in file_list:
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk')
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
+    lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
+                        * (len(file_list) - (file_list.index(filename) + 1)))
     if len(df_qfq) > 0:  # 返回值大于0，表示有更新
         df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
-    print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计'
-          f'{int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))}秒')
+        print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+    else:
+        print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+print('日线数据全部处理完成')
