@@ -385,17 +385,36 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
             return ""
     else:
         first_index = 0
+        flag_newstock = True
 
     flag_attach = False  # True=追加数据模式  False=数据全部重新计算
-    # 设置新股标志。True=新股，False=旧股。新股跳过追加数据部分的代码
-    flag_newstock = False
+    # 设置新股标志。True=新股，False=旧股。新股跳过追加数据部分的代码。如果没定义，默认为False
+    if 'flag_newstock' not in dir():
+        flag_newstock = False
 
     # 提取该股除权除息行保存到DF df_cqcx，提取其他信息行到df_gbbq
     df_cqcx = df_gbbq.loc[(df_gbbq['code'] == code) & (df_gbbq['类别'] == '除权除息')]
     df_gbbq = df_gbbq.loc[(df_gbbq['code'] == code) & (
-                          (df_gbbq['类别'] == '股本变化') |
-                          (df_gbbq['类别'] == '送配股上市') |
-                          (df_gbbq['类别'] == '转配股上市') )]
+            (df_gbbq['类别'] == '股本变化') |
+            (df_gbbq['类别'] == '送配股上市') |
+            (df_gbbq['类别'] == '转配股上市'))]
+
+    # 清洗df_gbbq，可能出现同一日期有 配股上市、股本变化两行数据。不清洗后面合并会索引冲突。
+    # 下面的代码可以保证删除多个不连续的重复行，用DF dropdup方法不能确保删除的值是大是小
+    # 如果Ture在列表里。表示有重复行存在
+    if True in df_gbbq.duplicated(subset=['权息日'], keep=False).to_list():
+        #  提取重复行的索引
+        del_index = []  # 要删除的后流通股的值
+        tmp_dict = df_gbbq.duplicated(subset=['权息日'], keep=False).to_dict()
+        for k, v in tmp_dict.items():
+            if v:
+                del_index.append(df_gbbq.at[k, '送转股-后流通盘'])
+                # 如果dup_index有1个以上的值，且K+1的元素是False，或K+1不存在也返回False，表示下一个元素 不是 重复行
+                if len(del_index) > 1 and (tmp_dict.get(k + 1, False) == False):
+                    del_index.remove(max(del_index))  # 删除最大值
+                    # 选择剩余的值，取反，则相当于保留了最大值，删除了其余的值
+                    df_gbbq = df_gbbq[~df_gbbq['送转股-后流通盘'].isin(del_index)]
+
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04 为了按日期一一对应拼接
     df_cqcx = df_cqcx.assign(date=pd.to_datetime(df_cqcx['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
     df_cqcx.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
@@ -407,13 +426,6 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     else:
         cqcx_lastest_date = str(datetime.date.today())
         flag_newstock = True
-
-    # 单独提取流通股处理。因为流通股需要设置几个流通股变更的时间点，之后才填充。和其他列的处理会冲突。
-    # 如果有流通股列，单独复制出来；如果没有流通股列，添加流通股列，赋值为NaN。
-    # 虽然财报中可能没有流通股的数据，但股本变迁文件中最少也有股票第一天上市时的流通股数据。
-    # 且后面还会因为送配股上市、股本变化，导致在非财报日之前，流通股就发生变动
-    if '流通股' not in df_code.columns.to_list():
-        df_code['流通股'] = np.nan
 
     # 判断df_code是否已有历史数据，是追加数据还是重新生成。
     # 如果gbbq_lastest_date not in df_code.loc[first_index:, 'date'].to_list()，表示未更新数据中不包括除权除息日
@@ -428,9 +440,40 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
             df_code_original.dropna(how='any', inplace=True)  # 丢掉缺失数据的行，之后直接append新数据就行。比merge简单。
             df_code_original['date'] = pd.to_datetime(df_code_original['date'], format='%Y-%m-%d')  # 转为时间格式
             df_code_original.set_index('date', drop=True, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-            # 由于无需搜索财报，所以直接把流通股的值复制过来。后面也直接跳过找财报代码。代码会警告，暂时无法解决
-            with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
-                df_code['流通股'] = df_code_original.at[df_code_original.index[first_index - 1], '流通股']
+
+    # 单独提取流通股处理。因为流通股是设置流通股变更时间节点，最后才填充nan值。和其他列的处理会冲突。
+    # 如果有流通股列，单独复制出来；如果没有流通股列，添加流通股列，赋值为NaN。
+    # 如果是追加数据模式，则肯定已存在流通股列且数据已处理。因此不需单独提取流通股列。只在前复权前处理缺失的流通股数据即可
+    # 虽然财报中可能没有流通股的数据，但股本变迁文件中最少也有股票第一天上市时的流通股数据。
+    # 且后面还会因为送配股上市、股本变化，导致在非财报日之前，流通股就发生变动
+    if not flag_attach:
+        if '流通股' in df_code.columns.to_list():
+            df_ltg = pd.DataFrame(index=df_code.index)
+            df_ltg['date'] = df_code['date']
+            df_ltg['流通股'] = df_code['流通股']
+            del df_code['流通股']
+        else:
+            df_ltg = pd.DataFrame(index=df_code.index)
+            df_ltg['date'] = df_code['date']
+            df_ltg['流通股'] = np.nan
+    else:
+        # 附加模式，此处df_code是已经切片过的，只包括需要更新的数据行。其中也包含流通股列，值全为NaN。
+        # 类似单独提出处理流通股列，和新股模式的区别是只处理需要更新的数据行。
+        df_ltg = pd.DataFrame(index=df_code.index)
+        del df_code['流通股']
+        # 第一个值赋值为df_code_original流通股列第一个NaN值的前一个有效值
+        ltg_lastest_value = df_code_original.at[df_code_original.index[-1], '流通股']
+        df_ltg['date'] = df_code['date']
+        df_ltg['流通股'] = np.nan
+        df_ltg.at[0, '流通股'] = ltg_lastest_value
+    df_gbbq = df_gbbq.rename(columns={'送转股-后流通盘': '流通股'})  # 列改名，为了update可以匹配
+    # 用df_gbbq update data，由于只有流通股列重复，因此只会更新流通股列对应索引的NaN值
+    df_ltg['date'] = pd.to_datetime(df_ltg['date'], format='%Y-%m-%d')  # 转为时间格式
+    df_ltg.set_index('date', drop=True, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
+    df_ltg.update(df_gbbq, overwrite=False)  # 使用update方法更新df_ltg
+    if not flag_attach:  # 附加模式则单位已经调整过，无需再调整
+        # 股本变迁里的流通股单位是万股。转换与财报的单位：股 统一
+        df_ltg['流通股'] = df_ltg['流通股'] * 10000
 
     # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04  为了按日期一一对应拼接
     with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
@@ -441,10 +484,6 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     # 提取df_cqcx和df_gbbq表的category列的值，按日期一一对应，列拼接到bfq_data表。也就是标识出当日是股本变迁的行
     data = pd.concat([df_code, df_cqcx[['category']][df_code.index[0]:]], axis=1)
     # print(data)
-
-    df_gbbq = df_gbbq.rename(columns={'送转股-后流通盘': '流通股'})  # 列改名，为了update可以匹配
-    # 用df_gbbq升级data，由于只有流通股列重复，因此只会更新流通股列对应索引的NaN值
-    data.update(df_gbbq, overwrite=False)
 
     data['if_trade'].fillna(value=False, inplace=True)  # if_trade列，无效的值填充为False
     data = data.fillna(method='ffill')  # 向下填充无效值
@@ -470,30 +509,33 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
                       '送转股-后流通盘', 'if_trade', 'category', 'preclose'], axis=1)[data['open'] != 0]
     # 复权处理完成
 
+    # 如果没有传参进来，就自己读取财务文件，否则用传参的值
+    if df_cw == '':
+        cw_dict = readall_local_cwfile()
+    else:
+        cw_dict = df_cw
 
-    if not flag_attach:  # 如果不是追加数据模式。如果是追加数据，则不需要查找财报
-        # 如果没有传参进来，就自己读取财务文件，否则用传参的值
-        if df_cw == '':
-            cw_dict = readall_local_cwfile()
-        else:
-            cw_dict = df_cw
+    # 计算换手率
+    # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
+    e_date = '20990101'
+    for cw_date in cw_dict:  # 遍历财报字典  cw_date=财报日期  cw_dict[cw_date]=具体的财报内容
+        # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环。有例外情况：003001
+        # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
+        if df_ltg.index[0].strftime('%Y%m%d') <= cw_date <= df_ltg.index[-1].strftime('%Y%m%d') \
+                and (cw_dict[cw_date][1] == code).any():
+            # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
+            code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
+            # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
+            # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
+            # f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
+            # 如果流通股值是0，则进行下一次循环
+            if int(cw_dict[cw_date].iat[code_df_index, 239]) != 0:
+                #  df_ltg[cw_date:e_date].index[0] 表示df_ltg中从cw_date到e_date的第一个索引的值。
+                #  也就是离cw_date日期最近的下一个有效行
+                df_ltg.at[df_ltg[cw_date:e_date].index[0], '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 239])
 
-        # 计算换手率
-        # 财报数据公开后，股本才变更。因此有效时间是“当前财报日至未来日期”。故将结束日期设置为2099年。每次财报更新后更新对应的日期时间段
-        e_date = '20990101'
-        for cw_date in cw_dict:  # 遍历财报字典  cw_date=财报日期  cw_dict[cw_date]=具体的财报内容
-            # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环。有例外情况：003001
-            # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
-            if data.index[0].strftime('%Y%m%d') <= cw_date and (cw_dict[cw_date][1] == code).any():
-                # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
-                code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
-                # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
-                # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
-                # f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
-                # 如果流通股值是0，则进行下一次循环
-                if cw_dict[cw_date].iat[code_df_index, 239] != '0' or cw_dict[cw_date].iat[code_df_index, 239] != '0.0':
-                    data.loc[cw_date:e_date, '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 239])
-
+    # df_ltg拼接回原DF
+    data = pd.concat([data, df_ltg], axis=1)
 
     data = data.fillna(method='ffill')  # 向下填充无效值
     data = data.fillna(method='bfill')  # 向上填充无效值  为了弥补开始几行的空值
@@ -514,6 +556,8 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     elif len(start_date) != 0 and len(end_date) != 0:
         data = data[start_date:end_date]
     data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
+    # 最后调整列顺序
+    data = data.reindex(columns=['date', 'open', 'high', 'low', 'close', 'vol', 'amount', 'adj', '流通股', '流通市值', '换手率%'])
     return data
 
 
