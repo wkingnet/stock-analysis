@@ -364,14 +364,13 @@ def readall_local_cwfile():
     将全部财报文件读到df_cw字典里。会占用1G内存，但处理速度比遍历CSV方式快很多
     :return: 字典形式，所有财报内容。
     """
-    import modin.pandas as mpd
     print(f'开始载入所有财报文件到内存 会占用1G内存 预计需要30秒')
     dict = {}
     cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
     starttime_tick = time.time()
     for cwfile in cwfile_list:
         if os.path.getsize(ucfg.tdx['csv_cw'] + os.sep + cwfile) != 0:
-            dict[cwfile[4:-4]] = (mpd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
+            dict[cwfile[4:-4]] = (pd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
                                               index_col=0, header=None, encoding='gbk', dtype={1: str}))
     print(f'读取所有财报文件完成 用时{(time.time() - starttime_tick):.2f}秒')
     return dict
