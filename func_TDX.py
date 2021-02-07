@@ -364,14 +364,13 @@ def readall_local_cwfile():
     将全部财报文件读到df_cw字典里。会占用1G内存，但处理速度比遍历CSV方式快很多
     :return: 字典形式，所有财报内容。
     """
-    print(f'开始载入所有财报文件到内存 会占用1G内存 预计需要30秒')
+    print(f'开始载入所有财报文件到内存')
     dict = {}
     cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
     starttime_tick = time.time()
     for cwfile in cwfile_list:
         if os.path.getsize(ucfg.tdx['csv_cw'] + os.sep + cwfile) != 0:
-            dict[cwfile[4:-4]] = (pd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
-                                              index_col=0, header=None, encoding='gbk', dtype={1: str}))
+            dict[cwfile[4:-4]] = pd.read_pickle(ucfg.tdx['csv_cw'] + os.sep + cwfile, compression=None)
     print(f'读取所有财报文件完成 用时{(time.time() - starttime_tick):.2f}秒')
     return dict
 
@@ -610,17 +609,18 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环。有例外情况：003001
         # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
         if df_ltg.index[0].strftime('%Y%m%d') <= cw_date <= df_ltg.index[-1].strftime('%Y%m%d') \
-                and (cw_dict[cw_date][1] == code).any():
-            # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
-            code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
-            # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
-            # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
-            # f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
-            # 如果流通股值是0，则进行下一次循环
-            if int(cw_dict[cw_date].iat[code_df_index, 239]) != 0:
-                #  df_ltg[cw_date:e_date].index[0] 表示df_ltg中从cw_date到e_date的第一个索引的值。
-                #  也就是离cw_date日期最近的下一个有效行
-                df_ltg.at[df_ltg[cw_date:e_date].index[0], '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 239])
+                and len(cw_dict[cw_date]) > 0:
+            if (cw_dict[cw_date][1] == code).any():
+                # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
+                code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
+                # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
+                # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
+                # f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
+                # 如果流通股值是0，则进行下一次循环
+                if int(cw_dict[cw_date].iat[code_df_index, 239]) != 0:
+                    #  df_ltg[cw_date:e_date].index[0] 表示df_ltg中从cw_date到e_date的第一个索引的值。
+                    #  也就是离cw_date日期最近的下一个有效行
+                    df_ltg.at[df_ltg[cw_date:e_date].index[0], '流通股'] = float(cw_dict[cw_date].iat[code_df_index, 239])
 
     # df_ltg拼接回原DF
     data = pd.concat([data, df_ltg], axis=1)
@@ -650,7 +650,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
 
 
 if __name__ == '__main__':
-    stock_code = '002174'
+    stock_code = '000001'
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')

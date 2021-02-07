@@ -41,12 +41,12 @@ tdx_txt_df = tdx_txt_df.text.strip().split('\r\n')  # 分割行
 tdx_txt_df = [l.strip().split(",") for l in tdx_txt_df]  # 用,分割，二维列表
 tdx_txt_df = pd.DataFrame(tdx_txt_df, columns=['filename', 'md5', 'filesize'])  # 转为df格式，好比较
 
-# 检查本机文件是否有缺失
+# 检查本机通达信dat文件是否有缺失
 local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 many_thread_download = func_TDX.ManyThreadDownload()
 for df_filename in tdx_txt_df['filename'].tolist():
     if df_filename not in local_zipfile_list:
-        print(f'{df_filename} 本机不存在 开始下载')
+        print(f'{df_filename} 本机没有 开始下载')
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + df_filename
         local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + df_filename
         many_thread_download.run(tdx_zipfile_url, local_zipfile_path)
@@ -54,11 +54,11 @@ for df_filename in tdx_txt_df['filename'].tolist():
             zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
         df = func_TDX.historyfinancialreader(local_datfile_path)
-        csvpath = ucfg.tdx['csv_cw'] + os.sep + df_filename[:-4] + ".csv"
-        df.to_csv(csvpath, encoding='gbk', index=True, header=False)  # 会自动覆盖源文件
+        csvpath = ucfg.tdx['csv_cw'] + os.sep + df_filename[:-4] + ".pkl"
+        df.to_pickle(csvpath, compression=None)
         print(f'{df_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
 
-# 检查本机文件是否需要更新
+# 检查本机通达信zip文件是否需要更新
 local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 for zipfile_filename in local_zipfile_list:
     local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + zipfile_filename
@@ -74,9 +74,23 @@ for zipfile_filename in local_zipfile_list:
             zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
         df = func_TDX.historyfinancialreader(local_datfile_path)
-        csvpath = ucfg.tdx['csv_cw'] + os.sep + zipfile_filename[:-4] + ".csv"
-        df.to_csv(csvpath, encoding='gbk', index=True, header=False)  # 会自动覆盖原文件。
+        csvpath = ucfg.tdx['csv_cw'] + os.sep + zipfile_filename[:-4] + ".pkl"
+        df.to_pickle(csvpath, compression=None)
         print(f'{zipfile_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
+
+# 检查本机财报导出文件是否存在
+cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
+local_datfile_list = func_TDX.list_localTDX_cwfile('dat')  # 获取本机已有文件
+for filename in local_datfile_list:
+    filenamepkl = filename[:-4] + '.pkl'
+    pklpath = ucfg.tdx['csv_cw'] + os.sep + filenamepkl
+    filenamedat = filename[:-4] + '.dat'
+    datpath = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + filenamedat
+    if filenamedat not in cwfile_list:  # 本机zip文件的md5与服务器端不一致
+        print(f'{filename} 本机没有 需要导出')
+        df = func_TDX.historyfinancialreader(datpath)
+        df.to_pickle(pklpath, compression=None)
+        print(f'{filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
 
 print(f'专业财务文件检查更新完成')
 
