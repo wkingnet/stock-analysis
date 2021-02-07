@@ -43,14 +43,13 @@ tdx_txt_df = pd.DataFrame(tdx_txt_df, columns=['filename', 'md5', 'filesize'])  
 
 # 检查本机文件是否有缺失
 local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
+many_thread_download = func_TDX.ManyThreadDownload()
 for df_filename in tdx_txt_df['filename'].tolist():
     if df_filename not in local_zipfile_list:
         print(f'{df_filename} 本机不存在 开始下载')
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + df_filename
-        download_obj = func_TDX.dowload_url(tdx_zipfile_url)
         local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + df_filename
-        with open(local_zipfile_path, 'wb') as fileobj:  # 写入下载的zip文件内容
-            fileobj.write(download_obj.content)
+        many_thread_download.run(tdx_zipfile_url, local_zipfile_path)
         with zipfile.ZipFile(local_zipfile_path, 'r') as zipobj:  # 打开zip对象，释放zip文件。会自动覆盖原文件。
             zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
@@ -70,9 +69,7 @@ for zipfile_filename in local_zipfile_list:
         print(f'{zipfile_filename} 需要更新 开始下载')
         os.remove(local_zipfile_path)  # 删除本机zip文件
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + zipfile_filename
-        download_obj = func_TDX.dowload_url(tdx_zipfile_url)  # 下载最新zip文件
-        with open(local_zipfile_path, 'wb') as fileobj:   # 写入下载的zip文件内容
-            fileobj.write(download_obj.content)
+        many_thread_download.run(tdx_zipfile_url, local_zipfile_path)
         with zipfile.ZipFile(local_zipfile_path, 'r') as zipobj:  # 打开zip对象，释放zip文件。会自动覆盖原文件。
             zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
         local_datfile_path = local_zipfile_path[:-4] + ".dat"

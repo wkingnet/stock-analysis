@@ -10,8 +10,11 @@ import os
 import statistics
 import time
 import datetime
+import requests
 import numpy as np
 import pandas as pd
+import threading
+from queue import Queue
 from retry import retry
 import user_config as ucfg
 
@@ -238,6 +241,91 @@ def historyfinancialreader(filepath):
     return df
 
 
+class ManyThreadDownload:
+    def __init__(self, num=10):
+        self.num = num              # 线程数,默认10
+        self.url = ''               # url
+        self.name = ''              # 目标地址
+        self.total = 0              # 文件大小
+
+    # 获取每个线程下载的区间
+    def get_range(self):
+        ranges = []
+        offset = int(self.total/self.num)
+        for i in range(self.num):
+            if i == self.num-1:
+                ranges.append((i*offset, ''))
+            else:
+                ranges.append(((i * offset), (i + 1) * offset - 1))
+        return ranges               # [(0,99),(100,199),(200,"")]
+
+    # 通过传入开始和结束位置来下载文件
+    def download(self, ts_queue):
+        while not ts_queue.empty():
+            start_, end_ = ts_queue.get()
+            headers = {
+                'Range': 'Bytes=%s-%s' % (start_, end_),
+                'Accept-Encoding': '*'
+                }
+            flag = False
+            while not flag:
+                try:
+                    # 设置重连次数
+                    requests.adapters.DEFAULT_RETRIES = 10
+                    # s = requests.session()            # 每次都会发起一次TCP握手,性能降低，还可能因发起多个连接而被拒绝
+                    # # 设置连接活跃状态为False
+                    # s.keep_alive = False
+                    # 默认stream=false,立即下载放到内存,文件过大会内存不足,大文件时用True需改一下码子
+                    res = requests.get(self.url, headers=headers)
+                    res.close()                         # 关闭请求  释放内存
+                except Exception as e:
+                    print((start_, end_, "出错了,连接重试:%s", e, ))
+                    time.sleep(1)
+                    continue
+                flag = True
+
+            # print("\n", ("%s-%s download success" % (start_, end_)), end="", flush=True)
+            # with lock:
+            with open(self.name, "rb+") as fd:
+                fd.seek(start_)
+                fd.write(res.content)
+            # self.fd.seek(start_)                                        # 指定写文件的位置,下载的内容放到正确的位置处
+            # self.fd.write(res.content)                                  # 将下载文件保存到 fd所打开的文件里
+
+    def run(self, url, name):
+        self.url = url
+        self.name = name
+        self.total = int(requests.head(url).headers['Content-Length'])
+        # file_size = int(urlopen(self.url).info().get('Content-Length', -1))
+        file_size = self.total
+        if os.path.exists(name):
+            first_byte = os.path.getsize(name)
+        else:
+            first_byte = 0
+        if first_byte >= file_size:
+            return file_size
+
+        self.fd = open(name, "wb")                   # 续传时直接rb+ 文件不存在时会报错,先wb再rb+
+        self.fd.truncate(self.total)                 # 建一个和下载文件一样大的文件,不是必须的,stream=True时会用到
+        self.fd.close()
+        # self.fd = open(self.name, "rb+")           # 续传时ab方式打开时会强制指针指向文件末尾,seek并不管用,应用rb+模式
+        thread_list = []
+        ts_queue = Queue()                           # 用队列的线程安全特性，以列表的形式把开始和结束加到队列
+        for ran in self.get_range():
+            start_, end_ = ran
+            ts_queue.put((start_, end_))
+
+        for i in range(self.num):
+            t = threading.Thread(target=self.download, name='th-' + str(i), kwargs={'ts_queue': ts_queue})
+            t.setDaemon(True)
+            thread_list.append(t)
+        for t in thread_list:
+            t.start()
+        for t in thread_list:
+            t.join()                                # 设置等待，全部线程完事后再继续
+
+        self.fd.close()
+
 @retry(tries=3, delay=3)  # 无限重试装饰性函数
 def dowload_url(url):
     """
@@ -276,13 +364,14 @@ def readall_local_cwfile():
     将全部财报文件读到df_cw字典里。会占用1G内存，但处理速度比遍历CSV方式快很多
     :return: 字典形式，所有财报内容。
     """
+    import modin.pandas as mpd
     print(f'开始载入所有财报文件到内存 会占用1G内存 预计需要30秒')
     dict = {}
     cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
     starttime_tick = time.time()
     for cwfile in cwfile_list:
         if os.path.getsize(ucfg.tdx['csv_cw'] + os.sep + cwfile) != 0:
-            dict[cwfile[4:-4]] = (pd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
+            dict[cwfile[4:-4]] = (mpd.read_csv(ucfg.tdx['csv_cw'] + os.sep + cwfile,
                                               index_col=0, header=None, encoding='gbk', dtype={1: str}))
     print(f'读取所有财报文件完成 用时{(time.time() - starttime_tick):.2f}秒')
     return dict
