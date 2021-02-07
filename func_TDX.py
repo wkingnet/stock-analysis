@@ -23,15 +23,30 @@ def REF(value, day):
     """
     引用若干周期前的数据。可以是列表或序列类型
     """
-    result = value[~day]
+    if 'list' in str(type(value)):
+        result = value[~day]
+    elif 'series' in str(type(value)):
+        result = value.iloc[~day]
     return result
 
 
 def MA(value, day):
     """
-    返回简单移动平均。可以是列表或序列类型
+    返回当前周期的简单移动平均值。传入可以是列表或序列类型。传出是当前周期的简单移动平均值。
     """
-    result = statistics.mean(value[-day:])
+    import talib
+    # result = statistics.mean(value[-day:])
+    result = talib.SMA(value, day).iat[-1]
+    return result
+
+
+def SMA(value, day):
+    """
+    返回简单移动平均序列。传入可以是列表或序列类型。传出是历史到当前周期为止的简单移动平均序列。
+    """
+    import talib
+    # result = statistics.mean(value[-day:])
+    result = talib.SMA(value, day)
     return result
 
 
@@ -650,7 +665,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
 
 
 if __name__ == '__main__':
-    stock_code = '000001'
+    stock_code = '002174'
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
