@@ -99,7 +99,7 @@ df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype=
 cw_dict = func_TDX.readall_local_cwfile()
 for filename in file_list:
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk')
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk', dtype={'code': str})
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
     lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
                         * (len(file_list) - (file_list.index(filename) + 1)))

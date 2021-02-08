@@ -57,8 +57,9 @@ print("开始载入所有日线文件到内存")
 dict = {}
 for stockcode in stocklist:
     csvfile = csvdaypath + os.sep + stockcode + '.csv'
-    dict[stockcode] = pd.read_csv(csvfile, encoding='gbk', index_col=0)
-
+    dict[stockcode] = pd.read_csv(csvfile, encoding='gbk', index_col=None, dtype={'code': str})
+    dict[stockcode]['date'] = pd.to_datetime(dict[stockcode]['date'], format='%Y-%m-%d')  # 转为时间格式
+    dict[stockcode].set_index('date', drop=True, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
     celue1 = CeLue.策略1(dict[stockcode], start_date=start_date, end_date=end_date)
     if celue1:
