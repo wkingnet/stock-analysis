@@ -12,6 +12,10 @@ import CeLue  # 个人策略文件，不分享
 import func_TDX
 import user_config as ucfg
 
+# 配置部分
+start_date = ''
+end_date = ''
+
 # 变量定义
 tdxpath = ucfg.tdx['tdx_path']
 csvdaypath = ucfg.tdx['csv_lday']
@@ -52,17 +56,21 @@ stocklist = tmplist
 print("开始载入所有日线文件到内存")
 dict = {}
 for stockcode in stocklist:
-    process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
     csvfile = csvdaypath + os.sep + stockcode + '.csv'
     dict[stockcode] = pd.read_csv(csvfile, encoding='gbk', index_col=0)
-print(f'开始选股')
-for stockcode in stocklist:
+
     process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
-    cl1 = CeLue.策略1(dict[stockcode])
-    if cl1:
-        已选出股票列表.append(stockcode)
+    celue1 = CeLue.策略1(dict[stockcode], start_date=start_date, end_date=end_date)
+    if celue1:
+        celue2 = CeLue.策略2(dict[stockcode], start_date=start_date, end_date=end_date)
+        if celue2:
+            已选出股票列表.append(stockcode)
     print(f'{process_info} 完成，已选出 {len(已选出股票列表):>2d} 只股票 已用{(time.time() - starttime_tick):>5.2f}秒')
 
+print(f'开始选股')
+for stockcode in stocklist:
+    # 留空
+    pass
 # 结果
 print(f'全部完成，已选出{len(已选出股票列表)}只股票，清单:')
 print(已选出股票列表)
