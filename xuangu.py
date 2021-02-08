@@ -49,12 +49,16 @@ for stockcode in stocklist:
 stocklist = tmplist
 
 # 策略部分
-print("开始循环执行策略")
+print("开始载入所有日线文件到内存")
+dict = {}
 for stockcode in stocklist:
     process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
     csvfile = csvdaypath + os.sep + stockcode + '.csv'
-    df = pd.read_csv(csvfile, encoding='gbk', index_col=0)
-    cl1 = CeLue.策略1(df)
+    dict[stockcode] = pd.read_csv(csvfile, encoding='gbk', index_col=0)
+print(f'开始选股')
+for stockcode in stocklist:
+    process_info = f'[{(stocklist.index(stockcode) + 1):>4}/{str(len(stocklist))}] {stockcode}'
+    cl1 = CeLue.策略1(dict[stockcode])
     if cl1:
         已选出股票列表.append(stockcode)
     print(f'{process_info} 完成，已选出 {len(已选出股票列表):>2d} 只股票 已用{(time.time() - starttime_tick):>5.2f}秒')
