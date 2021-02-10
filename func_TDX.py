@@ -21,7 +21,7 @@ import user_config as ucfg
 
 def REF(value, day):
     """
-    引用若干周期前的数据。可以是列表或序列类型
+    引用若干周期前的数据。可以是列表或序列类型。返回具体数值
     """
     if 'list' in str(type(value)):
         result = value[~day]
@@ -32,7 +32,7 @@ def REF(value, day):
 
 def MA(value, day):
     """
-    返回当前周期的简单移动平均值。传入可以是列表或序列类型。传出是当前周期的简单移动平均值。
+    返回当前周期的简单移动平均值。传入可以是列表或序列类型。传出是当前周期的简单移动平均具体值。
     """
     import talib
     # result = statistics.mean(value[-day:])
@@ -64,6 +64,20 @@ def LLV(value, day):
     """
     value = min(value[-day:])
     return value
+
+
+def count(cond, n):
+    series = cond
+    size = len(cond) - n
+    try:
+        result = np.full(size, 0, dtype=int)
+    except ValueError as e:
+        raise e
+    for i in range(size - 1, 0, -1):
+        s = series[-n:]
+        result[i] = len(s[s == True])
+        series = series[:-1]
+    return result
 
 
 # debug输出函数
@@ -154,7 +168,7 @@ def day2csv(source_dir, file_name, target_dir):
         # a[0]  将’19910404'样式的字符串转为'1991-05-05'格式的字符串。为了统一日期格式
         a_date = str(a[0])[0:4] + '-' + str(a[0])[4:6] + '-' + str(a[0])[6:8]
         file_name[2:-4]
-        line = '\n' +  file_name[2:-4] + ',' \
+        line = '\n' + file_name[2:-4] + ',' \
                + str(a_date) + ',' \
                + str(a[1] / 100.0) + ',' \
                + str(a[2] / 100.0) + ',' \
@@ -260,21 +274,21 @@ def historyfinancialreader(filepath):
 
 class ManyThreadDownload:
     def __init__(self, num=10):
-        self.num = num              # 线程数,默认10
-        self.url = ''               # url
-        self.name = ''              # 目标地址
-        self.total = 0              # 文件大小
+        self.num = num  # 线程数,默认10
+        self.url = ''  # url
+        self.name = ''  # 目标地址
+        self.total = 0  # 文件大小
 
     # 获取每个线程下载的区间
     def get_range(self):
         ranges = []
-        offset = int(self.total/self.num)
+        offset = int(self.total / self.num)
         for i in range(self.num):
-            if i == self.num-1:
-                ranges.append((i*offset, ''))
+            if i == self.num - 1:
+                ranges.append((i * offset, ''))
             else:
                 ranges.append(((i * offset), (i + 1) * offset - 1))
-        return ranges               # [(0,99),(100,199),(200,"")]
+        return ranges  # [(0,99),(100,199),(200,"")]
 
     # 通过传入开始和结束位置来下载文件
     def download(self, ts_queue):
@@ -283,7 +297,7 @@ class ManyThreadDownload:
             headers = {
                 'Range': 'Bytes=%s-%s' % (start_, end_),
                 'Accept-Encoding': '*'
-                }
+            }
             flag = False
             while not flag:
                 try:
@@ -294,9 +308,9 @@ class ManyThreadDownload:
                     # s.keep_alive = False
                     # 默认stream=false,立即下载放到内存,文件过大会内存不足,大文件时用True需改一下码子
                     res = requests.get(self.url, headers=headers)
-                    res.close()                         # 关闭请求  释放内存
+                    res.close()  # 关闭请求  释放内存
                 except Exception as e:
-                    print((start_, end_, "出错了,连接重试:%s", e, ))
+                    print((start_, end_, "出错了,连接重试:%s", e,))
                     time.sleep(1)
                     continue
                 flag = True
@@ -322,12 +336,12 @@ class ManyThreadDownload:
         if first_byte >= file_size:
             return file_size
 
-        self.fd = open(name, "wb")                   # 续传时直接rb+ 文件不存在时会报错,先wb再rb+
-        self.fd.truncate(self.total)                 # 建一个和下载文件一样大的文件,不是必须的,stream=True时会用到
+        self.fd = open(name, "wb")  # 续传时直接rb+ 文件不存在时会报错,先wb再rb+
+        self.fd.truncate(self.total)  # 建一个和下载文件一样大的文件,不是必须的,stream=True时会用到
         self.fd.close()
         # self.fd = open(self.name, "rb+")           # 续传时ab方式打开时会强制指针指向文件末尾,seek并不管用,应用rb+模式
         thread_list = []
-        ts_queue = Queue()                           # 用队列的线程安全特性，以列表的形式把开始和结束加到队列
+        ts_queue = Queue()  # 用队列的线程安全特性，以列表的形式把开始和结束加到队列
         for ran in self.get_range():
             start_, end_ = ran
             ts_queue.put((start_, end_))
@@ -339,9 +353,10 @@ class ManyThreadDownload:
         for t in thread_list:
             t.start()
         for t in thread_list:
-            t.join()                                # 设置等待，全部线程完事后再继续
+            t.join()  # 设置等待，全部线程完事后再继续
 
         self.fd.close()
+
 
 @retry(tries=3, delay=3)  # 无限重试装饰性函数
 def dowload_url(url):
@@ -665,6 +680,115 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount',
                                  'adj', '流通股', '流通市值', '换手率%'])
     return data
+
+
+def get_tdx_lastestquote(stocklist=None):
+    """
+    使用pytdx获取当前实时行情。返回行情的DF列表格式。stocklist为空则获取ucfg.tdx['csv_lday']目录全部股票行情
+    :param stocklist:  可选，list类型。str类型传入股票列表['000001', '000002','600030']
+    :return:当前从pytdx服务器获取的最新股票行情
+    """
+    # get_security_quotes只允许最大80个股票为一组 数字越大漏掉的股票越多。测试数据：
+    # 数字    获取股票    用时
+    # 80	3554	2.59
+    # 40	3874	5.07
+    # 20	4015	10.12
+    # 10	4105	17.54
+    from pytdx.hq import TdxHq_API
+
+    stocklist_pytdx = []
+
+    if stocklist is None:  # 如果列表为空，则获取csv_lday目录全部股票
+        stocklist = []
+        for i in os.listdir(ucfg.tdx['csv_lday']):
+            stocklist.append(i[:-4])
+    elif isinstance(stocklist, list):
+        stocklist = stocklist
+        for stock in stocklist:  # 构造get_security_quotes所需的元组参数
+            if stock[:1] == '6':
+                stocklist_pytdx.append(tuple([1, stock]))
+            elif stock[:1] == '0' or stock[:1] == '3':
+                stocklist_pytdx.append(tuple([0, stock]))
+    elif isinstance(stocklist, tuple):
+        stocklist_pytdx.append(stocklist)
+
+    df = pd.DataFrame()
+    api = TdxHq_API(raise_exception=False)
+    starttime_tick = time.time()
+    print(f'请求{len(stocklist_pytdx)}只股票实时行情')
+
+    if api.connect(ucfg.tdx['pytdx_ip'], ucfg.tdx['pytdx_port']):
+        # 第一轮获取股票行情，会有100只股票左右遗漏。pytdx代码问题
+        for k, v in enumerate(stocklist_pytdx):
+            if k > 0 and k % 10 == 0:
+                data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - 10:k]))
+                df = pd.concat([df, data], axis=0, ignore_index=True)
+            elif k == len(stocklist_pytdx) - 1:  # 循环到最后，少于10个构成一组
+                data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - (k % 10):k + 1]))
+                df = pd.concat([df, data], axis=0, ignore_index=True)
+        api.disconnect()
+        df.dropna(how='all', inplace=True)
+    # print(f'已获取{len(df)}只股票行情 用时{(time.time() - starttime_tick):>5.2f}秒')
+
+    # stocklist_pytdx剔除已获取的股票
+    for stock in df.loc[(df['market'] == 1)]['code'].to_list():
+        try:
+            stocklist_pytdx.remove((1, stock))
+        except ValueError:
+            pass
+    for stock in df.loc[(df['market'] == 0)]['code'].to_list():
+        try:
+            stocklist_pytdx.remove((0, stock))
+        except ValueError:
+            pass
+
+    #  第二轮获取股票行情，剩余的就是今日无交易的股票
+    if api.connect(ucfg.tdx['pytdx_ip'], ucfg.tdx['pytdx_port']):
+        for i in stocklist_pytdx:
+            data = api.to_df(api.get_security_quotes(i))
+            df = pd.concat([df, data], axis=0, ignore_index=True)
+        api.disconnect()
+        df.dropna(how='all', inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+    # stocklist_pytdx剔除已获取的股票
+    for stock in df.loc[(df['market'] == 1)]['code'].to_list():
+        try:
+            stocklist_pytdx.remove((1, stock))
+        except ValueError:
+            pass
+    for stock in df.loc[(df['market'] == 0)]['code'].to_list():
+        try:
+            stocklist_pytdx.remove((0, stock))
+        except ValueError:
+            pass
+
+    print(f'已获取{len(df)}只股票实时行情 用时{(time.time() - starttime_tick):>.2f}秒')
+    if len(stocklist_pytdx) > 0:
+        print(f'剩余{len(stocklist_pytdx)}只股票今日未交易: {stocklist_pytdx}')
+
+    return df
+
+
+def update_stockquote(code, df_history, df_today):
+    """
+    使用pytdx获取当前实时行情。合并历史DF和当前行情，返回合并后的DF
+    :param code:  str类型。股票代码，'600030'
+    :param df_history: DF类型。该股的历史DF数据
+    :param df_today: DF类型。该股的当天盘中最新数据
+    :return:合并后的DF数据
+    """
+    now_date = pd.to_datetime(time.strftime("%Y-%m-%d", time.localtime()))
+    # now_time = time.strftime("%H:%M:%S", time.localtime())
+    # df_history[date]最后一格的日期小于今天
+    if pd.to_datetime(df_history.at[df_history.index[-1], 'date']) < now_date:
+        df_today['date'] = now_date
+        df_today = df_today.rename(columns={'price': 'close'})
+        df_today = df_today[{'code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount'}]
+        result = pd.concat([df_history, df_today], axis=0, ignore_index=True)
+    else:
+        result = df_history
+    return result
 
 
 if __name__ == '__main__':

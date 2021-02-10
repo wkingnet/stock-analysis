@@ -105,6 +105,7 @@ for filename in file_list:
                         * (len(file_list) - (file_list.index(filename) + 1)))
     if len(df_qfq) > 0:  # 返回值大于0，表示有更新
         df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
+        df_qfq.to_pickle(ucfg.tdx['pickle'] + os.sep + filename[:-4] + '.pkl')
         print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
     else:
         print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
