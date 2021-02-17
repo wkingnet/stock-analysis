@@ -86,7 +86,7 @@ for filename in local_datfile_list:
     pklpath = ucfg.tdx['csv_cw'] + os.sep + filenamepkl
     filenamedat = filename[:-4] + '.dat'
     datpath = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + filenamedat
-    if filenamedat not in cwfile_list:  # 本机zip文件的md5与服务器端不一致
+    if filenamepkl not in cwfile_list:  # 本机zip文件的md5与服务器端不一致
         print(f'{filename} 本机没有 需要导出')
         df = func_TDX.historyfinancialreader(datpath)
         df.to_pickle(pklpath, compression=None)
@@ -108,7 +108,7 @@ df_gbbq.columns = ['code', '权息日', '类别',
 df_gbbq['类别'] = df_gbbq['类别'].astype('object')
 df_gbbq['code'] = df_gbbq['code'].astype('object')
 for i in range(df_gbbq.shape[0]):
-    df_gbbq.iat[i, df_gbbq.columns.get_loc("类别"), ] = category[str(df_gbbq.iat[i, df_gbbq.columns.get_loc("类别")])]
+    df_gbbq.iat[i, df_gbbq.columns.get_loc("类别")] = category[str(df_gbbq.iat[i, df_gbbq.columns.get_loc("类别")])]
 df_gbbq.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'gbbq.csv', encoding='gbk', index=False)
 # 如果读取，使用下行命令
 # df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': 'object'})

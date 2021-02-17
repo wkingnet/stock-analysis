@@ -1,9 +1,8 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 """
-模仿通达信语句的函数库，如MA(C,5) REF(C,1)等样式。以及其他一些读取通达信相关的函数。
-语句简单，只为了和通达信公式看起来一致，方便排查
-输入类型最好是DataFrame Series类型
+模仿通达信语句的函数库，如MA(C,5) REF(C,1)等样式。以及其他一些读取通达信相关的函数。函数简单，只为了和通达信公式看起来一致，方便排查。
+传入类型必须是pandas Series类型，MA输出具体数值，其他函数传出仍然是Series类型
 作者：wking [http://wkings.net]
 """
 import os
@@ -19,20 +18,29 @@ from retry import retry
 import user_config as ucfg
 
 
+def rolling_window(a, window):
+    """
+    copy from http://stackoverflow.com/questions/6811183/rolling-window-for-1d-arrays-in-numpy
+    """
+    from numpy.lib.stride_tricks import sliding_window_view
+    return sliding_window_view(a, window_shape = window)
+
+
 def REF(value, day):
     """
-    引用若干周期前的数据。可以是列表或序列类型。返回具体数值
+    引用若干周期前的数据。如果传入列表，返回具体数值。如果传入序列，返回序列
     """
     if 'list' in str(type(value)):
         result = value[~day]
     elif 'series' in str(type(value)):
-        result = value.iloc[~day]
+        result = value.shift(periods=day)
     return result
 
 
-def MA(value, day):
+def MA(value, day) -> float:
     """
     返回当前周期的简单移动平均值。传入可以是列表或序列类型。传出是当前周期的简单移动平均具体值。
+    :rtype: float
     """
     import talib
     # result = statistics.mean(value[-day:])
@@ -50,33 +58,67 @@ def SMA(value, day):
     return result
 
 
-def HHV(value, day):
+def HHV(series, day):
     """
     返回最大值
     """
-    value = max(value[-day:])
+    # value = max(series[-day:])
+    if day == 0:
+        value = series.rolling(series.shape[0]).max()
+    else:
+        value = series.rolling(day).max()
     return value
 
 
-def LLV(value, day):
+def LLV(series, day):
     """
     返回最小值
     """
-    value = min(value[-day:])
+    # value = min(value[-day:])
+    if day == 0:
+        value = series.rolling(series.shape[0]).min()
+    else:
+        value = series.rolling(day).min()
     return value
 
 
-def count(cond, n):
-    series = cond
-    size = len(cond) - n
-    try:
-        result = np.full(size, 0, dtype=int)
-    except ValueError as e:
-        raise e
-    for i in range(size - 1, 0, -1):
-        s = series[-n:]
-        result[i] = len(s[s == True])
-        series = series[:-1]
+def COUNT(series, n):
+    result = series.rolling(n) \
+        .apply(lambda x: x.value_counts().to_dict()[True] if True in x.value_counts().to_dict() else 0)
+    return result
+
+
+def EXIST(cond, n):
+    series = cond[-n:]
+    if True in series.to_list():
+        return True
+    else:
+        return False
+
+
+def CROSS(s1, s2):
+    cond1 = s1 > s2
+    cond2 = s1.shift() <= s2.shift()
+    result = cond1 & cond2
+    return result
+
+
+def BARSLAST(series):
+    # cond = cond.reset_index(drop=True, inplace=False)
+    # # 筛选出True值的所有单元格的索引，tolist，选最新的一个索引
+    # if True in cond.to_list():
+    #     result = cond.index[-1] - cond[cond == True].index.to_list()[-1]
+    # else:
+    #     result = False
+    result = pd.Series(index=series.index, dtype=int)
+    i = 0
+    for k, v in series.iteritems():
+        if v:
+            i = 0
+            result[k] = i
+        else:
+            i = i + 1
+            result[k] = i
     return result
 
 
@@ -690,10 +732,10 @@ def get_tdx_lastestquote(stocklist=None):
     """
     # get_security_quotes只允许最大80个股票为一组 数字越大漏掉的股票越多。测试数据：
     # 数字    获取股票    用时
-    # 80	3554	2.59
-    # 40	3874	5.07
-    # 20	4015	10.12
-    # 10	4105	17.54
+    # 80    3554    2.59
+    # 40    3874    5.07
+    # 20    4015    10.12
+    # 10    4105    17.54
     from pytdx.hq import TdxHq_API
 
     stocklist_pytdx = []
