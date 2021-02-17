@@ -23,7 +23,7 @@ def rolling_window(a, window):
     copy from http://stackoverflow.com/questions/6811183/rolling-window-for-1d-arrays-in-numpy
     """
     from numpy.lib.stride_tricks import sliding_window_view
-    return sliding_window_view(a, window_shape = window)
+    return sliding_window_view(a, window_shape=window)
 
 
 def REF(value, day):

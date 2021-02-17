@@ -103,7 +103,7 @@ else:
         df_today = func_TDX.get_tdx_lastestquote(stocklist)  # 获取当前最新行情
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
-        print(stockcode)
+        print(f'{stockcode} 用时{(time.time() - starttime_tick):>.2f}秒')
         if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '15:00:00':
             df_today_code = df_today.loc[df_today['code'] == stockcode]
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today_code)
@@ -113,7 +113,7 @@ else:
             if now_date in df_gbbq.loc[df_gbbq['code']==stockcode]['权息日'].to_list():
                 dict[stockcode] = func_TDX.make_fq(stockcode, dict[stockcode], df_gbbq, cw_dict)
 
-        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date=start_date, end_date=end_date)
+        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date='2015-01-01', end_date=end_date)
         if not celue2:
             stocklist.remove(stockcode)
             del dict[stockcode]
