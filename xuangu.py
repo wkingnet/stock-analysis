@@ -74,19 +74,21 @@ print('今日HS300行情判断')
 df_hs300 = pd.read_csv('d:/TDXdata/index/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
 df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
 df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '15:00:00':
+if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
     df_today = func_TDX.get_tdx_lastestquote((1, '000300'))
     df_hs300 = func_TDX.update_stockquote('000300', df_hs300, df_today)
+    del df_today
 HS300_信号 = CeLue.策略HS300(df_hs300)
 if not HS300_信号.iat[-1]:
     print('今日HS300不满足买入条件，停止选股')
 else:
-    print(f'HS300行情不错')
+    print(f'HS300行情可以执行策略')
     print(f'开始执行策略1')
+    if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':  # 获取当前最新行情，否则用昨天的数据
+        df_today = func_TDX.get_tdx_lastestquote(stocklist)
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
-        if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '15:00:00':  # 获取当前最新行情，否则用昨天的数据
-            df_today = func_TDX.get_tdx_lastestquote(stocklist)
+        if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':  # 获取当前最新行情，否则用昨天的数据
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today)
         dict[stockcode]['date'] = pd.to_datetime(dict[stockcode]['date'], format='%Y-%m-%d')  # 转为时间格式
         dict[stockcode].set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
@@ -104,7 +106,7 @@ else:
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
         print(f'{stockcode} 用时{(time.time() - starttime_tick):>.2f}秒')
-        if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '15:00:00':
+        if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
             df_today_code = df_today.loc[df_today['code'] == stockcode]
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today_code)
 

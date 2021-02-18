@@ -744,15 +744,21 @@ def get_tdx_lastestquote(stocklist=None):
         stocklist = []
         for i in os.listdir(ucfg.tdx['csv_lday']):
             stocklist.append(i[:-4])
-    elif isinstance(stocklist, list):
-        stocklist = stocklist
+    elif isinstance(stocklist, str):
+        tmp = []
+        tmp.append(stocklist)
+        stocklist = tmp
+        del tmp
+    elif isinstance(stocklist, tuple):
+        stocklist_pytdx.append(stocklist)
+
+    if isinstance(stocklist, list):
         for stock in stocklist:  # 构造get_security_quotes所需的元组参数
             if stock[:1] == '6':
                 stocklist_pytdx.append(tuple([1, stock]))
             elif stock[:1] == '0' or stock[:1] == '3':
                 stocklist_pytdx.append(tuple([0, stock]))
-    elif isinstance(stocklist, tuple):
-        stocklist_pytdx.append(stocklist)
+        del stocklist
 
     df = pd.DataFrame()
     api = TdxHq_API(raise_exception=False)
@@ -824,20 +830,24 @@ def update_stockquote(code, df_history, df_today):
     # now_time = time.strftime("%H:%M:%S", time.localtime())
     # df_history[date]最后一格的日期小于今天
     if pd.to_datetime(df_history.at[df_history.index[-1], 'date']) < now_date:
-        df_today['date'] = now_date
+        df_today = df_today[(df_today['code'] == code)]
+        with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
+            df_today['date'] = now_date
         df_today = df_today.rename(columns={'price': 'close'})
         df_today = df_today[{'code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount'}]
         result = pd.concat([df_history, df_today], axis=0, ignore_index=True)
+        result = result.fillna(method='ffill')  # 向下填充无效值
     else:
         result = df_history
     return result
 
 
 if __name__ == '__main__':
-    stock_code = '002174'
-    day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
-    df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
-    df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
-    if len(df_qfq) > 0:
-        df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')
+    # stock_code = '002174'
+    # day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
+    # df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
+    # df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
+    # df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
+    # if len(df_qfq) > 0:
+    #     df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')
+    get_tdx_lastestquote()
