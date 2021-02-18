@@ -83,8 +83,16 @@ def LLV(series, day):
 
 
 def COUNT(series, n):
-    result = series.rolling(n) \
-        .apply(lambda x: x.value_counts().to_dict()[True] if True in x.value_counts().to_dict() else 0)
+    # rolling方法不行，虽然简单明了但是性能太差
+    # result = series.rolling(n) \
+    #     .apply(lambda x: x.value_counts().to_dict()[True] if True in x.value_counts().to_dict() else 0)
+    df = series.to_frame('cond')
+    df.insert(df.shape[1], 'result', 0)
+    for index_true in df.loc[df['cond'] == True].index.to_list():
+        index_int = df.index.get_loc(index_true)
+        column_int = df.columns.get_loc('result')
+        df.iloc[index_int:index_int+n, column_int] = df.iloc[index_int:index_int+n, column_int] + 1
+    result = df['result']
     return result
 
 

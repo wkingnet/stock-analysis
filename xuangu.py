@@ -88,11 +88,11 @@ else:
         df_today = func_TDX.get_tdx_lastestquote(stocklist)
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
-        if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':  # 获取当前最新行情，否则用昨天的数据
+        if 'df_today' in dir():  # 更新当前最新行情，否则用昨天的数据
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today)
         dict[stockcode]['date'] = pd.to_datetime(dict[stockcode]['date'], format='%Y-%m-%d')  # 转为时间格式
         dict[stockcode].set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-        celue1 = CeLue.策略1(dict[stockcode], mode='fast', start_date=start_date, end_date=end_date)
+        celue1 = CeLue.策略1(dict[stockcode], start_date=start_date, end_date=end_date, mode='fast')
         if not celue1:
             stocklist.remove(stockcode)
             del dict[stockcode]
@@ -101,24 +101,23 @@ else:
     print(f'策略1执行完毕，已选出 {len(stocklist):>d} 只股票 用时{(time.time() - starttime_tick):>.2f}秒')
     # print(stocklist)
     print(f'开始执行策略2')
-    if 'df_today' not in dir():  # 如果没有当前最新行情
+    # 如果没有df_today
+    if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' and 'df_today' not in dir():
         df_today = func_TDX.get_tdx_lastestquote(stocklist)  # 获取当前最新行情
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
-        print(f'{stockcode} 用时{(time.time() - starttime_tick):>.2f}秒')
         if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
             df_today_code = df_today.loc[df_today['code'] == stockcode]
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today_code)
-
             # 判断今天是否在该股的权息日内。如果是，需要重新前复权
             now_date = pd.to_datetime(time.strftime("%Y-%m-%d", time.localtime()))
             if now_date in df_gbbq.loc[df_gbbq['code']==stockcode]['权息日'].to_list():
                 dict[stockcode] = func_TDX.make_fq(stockcode, dict[stockcode], df_gbbq, cw_dict)
-
-        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date='2015-01-01', end_date=end_date)
+        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date=start_date, end_date=end_date)
         if not celue2:
             stocklist.remove(stockcode)
             del dict[stockcode]
+        # print(f'{stockcode} 用时{(time.time() - starttime_tick):>.2f}秒')
     print(f'策略2执行完毕，已选出 {len(stocklist):>d} 只股票 用时{(time.time() - starttime_tick):>.2f}秒')
 
 
