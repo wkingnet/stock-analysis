@@ -841,9 +841,10 @@ def update_stockquote(code, df_history, df_today):
         df_today = df_today[(df_today['code'] == code)]
         with pd.option_context('mode.chained_assignment', None):  # 临时屏蔽语句警告
             df_today['date'] = now_date
+        df_today.set_index('date', drop=False, inplace=True)
         df_today = df_today.rename(columns={'price': 'close'})
         df_today = df_today[{'code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount'}]
-        result = pd.concat([df_history, df_today], axis=0, ignore_index=True)
+        result = pd.concat([df_history, df_today], axis=0, ignore_index=False)
         result = result.fillna(method='ffill')  # 向下填充无效值
     else:
         result = df_history
