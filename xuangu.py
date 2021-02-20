@@ -83,13 +83,18 @@ if not HS300_信号.iat[-1]:
     print('今日HS300不满足买入条件，停止选股')
 else:
     print(f'HS300行情可以执行策略')
-    print(f'开始执行策略1')
-    # 获取当前最新行情，临时保存到本地，防止多次调用被服务器封IP
+    # 周一到周五，14点半到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
     df_today_tmppath = ucfg.tdx['csv_gbbq'] + '/df_today.pkl'
-    if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
+    if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00'\
+            and 0 <= time.localtime(time.time()).tm_wday <= 4:
+        # 获取当前最新行情，临时保存到本地，防止多次调用被服务器封IP。
         if os.path.exists(df_today_tmppath):
-            print(f'读取本地临时最新行情文件')
-            df_today = pd.read_pickle(df_today_tmppath)
+            if round(time.time()-os.path.getmtime(df_today_tmppath)) < 600:  # 据创建时间小于10分钟读取本地文件
+                print(f'读取本地临时最新行情文件')
+                df_today = pd.read_pickle(df_today_tmppath)
+            else:
+                df_today = func_TDX.get_tdx_lastestquote(stocklist)
+                df_today.to_pickle(df_today_tmppath, compression=None)
         else:
             df_today = func_TDX.get_tdx_lastestquote(stocklist)
             df_today.to_pickle(df_today_tmppath, compression=None)
@@ -98,6 +103,7 @@ else:
             os.remove(df_today_tmppath)
         except FileNotFoundError:
             pass
+    print(f'开始执行策略1')
     starttime_tick = time.time()
     for stockcode in stocklist[:]:
         if 'df_today' in dir():  # 更新当前最新行情，否则用昨天的数据
