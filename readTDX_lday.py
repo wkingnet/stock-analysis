@@ -43,36 +43,38 @@ if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index'])
             pass
         try:
             os.mkdir(ucfg.tdx['csv_index'])
-        except  FileExistsError:
+        except FileExistsError:
             pass
 else:
     os.mkdir(ucfg.tdx['csv_lday'])
     os.mkdir(ucfg.tdx['csv_index'])
 
-# 读取退市股票列表
-delisted_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_spec.cfg',
-                              sep='|', header=None, index_col=None, encoding='gbk', dtype={1: str})
-delisted_stocks = delisted_stocks[1].tolist()
+# 读取通达信正常交易状态的股票列表。infoharbor_spec.cfg退市文件不齐全，放弃使用
+tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.code',
+                         sep='|', header=None, index_col=None, encoding='gbk', dtype={0: str})
+file_list = tdx_stocks[0].tolist()
 
 # 处理深市股票
-file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
-[file_list.remove(i) for i in file_list[:] if i[2:-4] in delisted_stocks]  # 从列表里删除已退市股票
+# file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
 used_time['sz_begintime'] = time.time()
 for f in file_list:
-    if f[0:4] == 'sz00' or f[0:4] == 'sz30':  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
-        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
+    if f[0:2] == '00' or f[0:2] == '30':
+        f = 'sz' + f + '.day'
+        if os.path.exists(ucfg.tdx['tdx_path']+'/vipdoc/sz/lday/'+f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
+            print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 used_time['sz_endtime'] = time.time()
 
 # 处理沪市股票
-file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
-[file_list.remove(i) for i in file_list[:] if i[2:-4] in delisted_stocks]  # 从列表里删除已退市股票
+# file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
 used_time['sh_begintime'] = time.time()
 for f in file_list:
     # 处理沪市sh6开头文件，否则跳过此次循环
-    if f[0:3] == 'sh6':
-        print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
+    if f[0:1] == '6':
+        f = 'sh' + f + '.day'
+        if os.path.exists(ucfg.tdx['tdx_path']+'/vipdoc/sh/lday/'+f):
+            print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 used_time['sh_endtime'] = time.time()
 
 # 处理指数文件

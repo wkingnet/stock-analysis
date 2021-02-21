@@ -712,8 +712,8 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     data = data.round({'open': 2, 'high': 2, 'low': 2, 'close': 2, })  # 指定列四舍五入
     if '流通股' in data.columns.to_list():
         data['流通市值'] = data['流通股'] * data['close']
-        data['换手率%'] = data['vol'] / data['流通股'] * 100
-        data = data.round({'流通市值': 2, '换手率%': 2, })  # 指定列四舍五入
+        data['换手率'] = data['vol'] / data['流通股'] * 100
+        data = data.round({'流通市值': 2, '换手率': 2, })  # 指定列四舍五入
     if flag_attach:  # 追加模式，则附加最新处理的数据
         data = df_code_original.append(data)
 
@@ -728,7 +728,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
     # 最后调整列顺序
     data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount',
-                                 'adj', '流通股', '流通市值', '换手率%'])
+                                 'adj', '流通股', '流通市值', '换手率'])
     return data
 
 
