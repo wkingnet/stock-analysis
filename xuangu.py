@@ -71,7 +71,7 @@ df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype=
 # 策略部分
 # 先判断今天是否买入
 print('今日HS300行情判断')
-df_hs300 = pd.read_csv('d:/TDXdata/index/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
+df_hs300 = pd.read_csv(ucfg.tdx['csv_index'] + '/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
 df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
 df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
 if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':

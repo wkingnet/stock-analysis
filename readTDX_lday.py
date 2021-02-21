@@ -37,12 +37,21 @@ if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index'])
                 os.remove(os.path.join(root, name))
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
+        for root, dirs, files in os.walk(ucfg.tdx['pickle'], topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
         try:
             os.mkdir(ucfg.tdx['csv_lday'])
         except FileExistsError:
             pass
         try:
             os.mkdir(ucfg.tdx['csv_index'])
+        except FileExistsError:
+            pass
+        try:
+            os.mkdir(ucfg.tdx['pickle'])
         except FileExistsError:
             pass
 else:
