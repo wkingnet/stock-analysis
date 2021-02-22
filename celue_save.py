@@ -3,6 +3,7 @@
 由于策略需要随时修改调整，因此单独写了策略写入文件，没有整合进readTDX_lday.py
 """
 import os
+import sys
 import csv
 import time
 import datetime
@@ -22,20 +23,29 @@ starttime_tick = time.time()
 tq = tqdm(file_list)
 for filename in tq:
     tq.set_description(filename[:-4])
-    process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
+    # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
     pklfile = ucfg.tdx['pickle'] + os.sep + filename
     df = pd.read_pickle(pklfile)
-    df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-    if not {'celue'}.issubset(df.columns):
-        df.insert(df.shape[1], 'celue', np.nan)  # 插入celu2列，赋值NaN
-    if True in df['celue'].isna().to_list():
-        start_date = df.index[np.where(df['celue'].isna())[0][0]]
-        end_date = df.index[-1]
-        celue2 = CeLue.策略2(df, HS300_信号, start_date=start_date, end_date=end_date)
-        df.loc[start_date:end_date, 'celue'] = celue2
-        df.reset_index(drop=True, inplace=True)
+    if 'del' in str(sys.argv[1:]):
+        del df['celue_buy']
+        del df['celue_sell']
         df.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename[:-4] + '.csv', index=False, encoding='gbk')
         df.to_pickle(ucfg.tdx['pickle'] + os.sep + filename)
-    lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
-                        * (len(file_list) - (file_list.index(filename) + 1)))
-    #print(f'{process_info} 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+    else:
+        df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
+        if not {'celue_buy'}.issubset(df.columns):
+            df.insert(df.shape[1], 'celue_buy', np.nan)  # 插入celu2列，赋值NaN
+            df.insert(df.shape[1], 'celue_sell', np.nan)  # 插入celu2列，赋值NaN
+        if True in df['celue_buy'].isna().to_list():
+            start_date = df.index[np.where(df['celue_buy'].isna())[0][0]]
+            end_date = df.index[-1]
+            celue2 = CeLue.策略2(df, HS300_信号, start_date=start_date, end_date=end_date)
+            celue_sell = CeLue.卖策略(df, celue2, start_date=start_date, end_date=end_date)
+            df.loc[start_date:end_date, 'celue_buy'] = celue2
+            df.loc[start_date:end_date, 'celue_sell'] = celue_sell
+            df.reset_index(drop=True, inplace=True)
+            df.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename[:-4] + '.csv', index=False, encoding='gbk')
+            df.to_pickle(ucfg.tdx['pickle'] + os.sep + filename)
+        lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
+                            * (len(file_list) - (file_list.index(filename) + 1)))
+    # print(f'{process_info} 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')

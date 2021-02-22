@@ -658,7 +658,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     # print(data)
 
     data['if_trade'].fillna(value=False, inplace=True)  # if_trade列，无效的值填充为False
-    data = data.fillna(method='ffill')  # 向下填充无效值
+    data.fillna(method='ffill', inplace=True)  # 向下填充无效值
 
     # 提取info表的'fenhong', 'peigu', 'peigujia',‘songzhuangu'列的值，按日期一一对应，列拼接到data表。
     # 也就是将当日是除权除息日的行，对应的除权除息数据，写入对应的data表的行。
