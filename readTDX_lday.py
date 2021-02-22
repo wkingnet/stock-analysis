@@ -13,20 +13,26 @@
 作者：wking [http://wkings.net]
 """
 import os
+import sys
 import time
 import pandas as pd
-
+import argparse
+from tqdm import tqdm
 import func_TDX
 import user_config as ucfg
 
 # 变量初始化
 used_time = {}  # 创建一个计时字典
 
+print('使用命令行参数 del 删除现有文件并重新生成完整数据')
+# print('参数列表:', str(sys.argv[1:]))
+# print('脚本名:', str(sys.argv[0]))
+
 # 主程序开始
 # 判断目录和文件是否存在，存在则直接删除
 if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index']):
-    choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
-    if choose == 'y':
+    # choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
+    if 'del' in str(sys.argv[1:]):
         for root, dirs, files in os.walk(ucfg.tdx['csv_lday'], topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
@@ -66,31 +72,31 @@ file_list = tdx_stocks[0].tolist()
 # 处理深市股票
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
 used_time['sz_begintime'] = time.time()
-for f in file_list:
+for f in tqdm(file_list):
     if f[0:2] == '00' or f[0:2] == '30':
         f = 'sz' + f + '.day'
-        if os.path.exists(ucfg.tdx['tdx_path']+'/vipdoc/sz/lday/'+f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
-            print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday/' + f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
+            # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
             func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 used_time['sz_endtime'] = time.time()
 
 # 处理沪市股票
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
 used_time['sh_begintime'] = time.time()
-for f in file_list:
+for f in tqdm(file_list):
     # 处理沪市sh6开头文件，否则跳过此次循环
     if f[0:1] == '6':
         f = 'sh' + f + '.day'
-        if os.path.exists(ucfg.tdx['tdx_path']+'/vipdoc/sh/lday/'+f):
-            print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday/' + f):
+            # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
             func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 used_time['sh_endtime'] = time.time()
 
 # 处理指数文件
 used_time['index_begintime'] = time.time()
 
-for i in ucfg.index_list:
-    print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
+for i in tqdm(ucfg.index_list):
+    # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
     if 'sh' in i:
         func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', i, ucfg.tdx['csv_index'])
     elif 'sz' in i:
@@ -108,7 +114,9 @@ file_list = os.listdir(ucfg.tdx['csv_lday'])
 starttime_tick = time.time()
 df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
 cw_dict = func_TDX.readall_local_cwfile()
-for filename in file_list:
+tq = tqdm(file_list)
+for filename in tq:
+
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk', dtype={'code': str})
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
@@ -117,7 +125,9 @@ for filename in file_list:
     if len(df_qfq) > 0:  # 返回值大于0，表示有更新
         df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
         df_qfq.to_pickle(ucfg.tdx['pickle'] + os.sep + filename[:-4] + '.pkl')
-        print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+        tq.set_description(filename + "复权完成")
+    #     print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
     else:
-        print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+        tq.set_description(filename + "无需更新")
+    #     print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
 print('日线数据全部处理完成')

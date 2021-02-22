@@ -15,6 +15,9 @@ import pandas as pd
 import threading
 from queue import Queue
 from retry import retry
+# from rich.progress import track
+# from rich import print
+from tqdm import tqdm
 import user_config as ucfg
 
 
@@ -195,7 +198,7 @@ def day2csv(source_dir, file_name, target_dir):
         if row_number > source_row_number:
             user_debug('已是最新数据，跳过for循环')
         else:
-            print('追加模式，从' + str(row_number + 1) + '行开始')
+            user_debug('追加模式，从' + str(row_number + 1) + '行开始')
 
         if row_number == 0:  # 如果文件出错是0的特殊情况
             begin = 0
@@ -771,17 +774,24 @@ def get_tdx_lastestquote(stocklist=None):
     df = pd.DataFrame()
     api = TdxHq_API(raise_exception=False)
     starttime_tick = time.time()
-    print(f'请求{len(stocklist_pytdx)}只股票实时行情')
-
+    print(f'请求 {len(stocklist_pytdx)} 只股票实时行情')
     if api.connect(ucfg.tdx['pytdx_ip'], ucfg.tdx['pytdx_port']):
         # 第一轮获取股票行情，会有100只股票左右遗漏。pytdx代码问题
-        for k, v in enumerate(stocklist_pytdx):
-            if k > 0 and k % 10 == 0:
-                data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - 10:k]))
-                df = pd.concat([df, data], axis=0, ignore_index=True)
-            elif k == len(stocklist_pytdx) - 1:  # 循环到最后，少于10个构成一组
-                data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - (k % 10):k + 1]))
-                df = pd.concat([df, data], axis=0, ignore_index=True)
+        if len(stocklist_pytdx) == 1:
+            data = api.to_df(api.get_security_quotes(stocklist_pytdx))
+            df = pd.concat([df, data], axis=0, ignore_index=True)
+        else:
+            k = 0
+            tq = tqdm(stocklist_pytdx, ncols=80)
+            for v in tq:
+                tq.set_description(v)
+                if k > 0 and k % 10 == 0:
+                    data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - 10:k]))
+                    df = pd.concat([df, data], axis=0, ignore_index=True)
+                elif k == len(stocklist_pytdx) - 1:  # 循环到最后，少于10个构成一组
+                    data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - (k % 10):k + 1]))
+                    df = pd.concat([df, data], axis=0, ignore_index=True)
+                k = k + 1
         api.disconnect()
         df.dropna(how='all', inplace=True)
     # print(f'已获取{len(df)}只股票行情 用时{(time.time() - starttime_tick):>5.2f}秒')
@@ -819,9 +829,10 @@ def get_tdx_lastestquote(stocklist=None):
         except ValueError:
             pass
 
-    print(f'已获取{len(df)}只股票实时行情 用时{(time.time() - starttime_tick):>.2f}秒')
+    print(f'已获取 {len(df)} 只股票实时行情 用时 {(time.time() - starttime_tick):>.2f} 秒')
     if len(stocklist_pytdx) > 0:
-        print(f'剩余{len(stocklist_pytdx)}只股票今日未交易: {stocklist_pytdx}')
+        print(f'剩余 {len(stocklist_pytdx)} 只股票今日未交易:')
+        print(stocklist_pytdx)
 
     return df
 

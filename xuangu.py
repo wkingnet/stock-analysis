@@ -7,7 +7,9 @@ import csv
 import time
 import datetime
 import pandas as pd
-
+# from rich.progress import track
+# from rich import print
+from tqdm import tqdm
 import CeLue  # 个人策略文件，不分享
 import func_TDX
 import user_config as ucfg
@@ -32,7 +34,7 @@ starttime_tick = time.time()
 # 要进行策略的股票列表筛选
 print("生成股票列表")
 stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_lday'])]  # 去文件名里的.csv，生成纯股票代码list
-print(f'共{len(stocklist)}只股票')
+print(f'共 {len(stocklist)} 只股票')
 print("剔除通达信概念股票")
 tmplist = []
 df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
@@ -54,16 +56,18 @@ for stockcode in stocklist:
         tmplist.append(stockcode)
 stocklist = tmplist
 股票总数 = len(stocklist)
-print(f'共{股票总数}只候选股票')
+print(f'共 {股票总数} 只候选股票')
 
 print("开始载入日线文件到内存")
 dict = {}
 starttime_tick = time.time()
-for stockcode in stocklist:
+tq = tqdm(stocklist)
+for stockcode in tq:
+    tq.set_description(stockcode)
     pklfile = csvdaypath + os.sep + stockcode + '.pkl'
     # dict[stockcode] = pd.read_csv(csvfile, encoding='gbk', index_col=None, dtype={'code': str})
     dict[stockcode] = pd.read_pickle(pklfile)
-print(f'载入完成 用时{(time.time() - starttime_tick):.2f}秒')
+print(f'载入完成 用时 {(time.time() - starttime_tick):.2f} 秒')
 
 cw_dict = func_TDX.readall_local_cwfile()
 df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
@@ -85,7 +89,7 @@ else:
     print(f'HS300行情可以执行策略')
     # 周一到周五，14点半到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
     df_today_tmppath = ucfg.tdx['csv_gbbq'] + '/df_today.pkl'
-    if '14:30:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00'\
+    if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00'\
             and 0 <= time.localtime(time.time()).tm_wday <= 4:
         # 获取当前最新行情，临时保存到本地，防止多次调用被服务器封IP。
         if os.path.exists(df_today_tmppath):
@@ -105,7 +109,9 @@ else:
             pass
     print(f'开始执行策略1')
     starttime_tick = time.time()
-    for stockcode in stocklist[:]:
+    tq = tqdm(stocklist[:])
+    for stockcode in tq:
+        tq.set_description(stockcode)
         if 'df_today' in dir():  # 更新当前最新行情，否则用昨天的数据
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today)
         dict[stockcode]['date'] = pd.to_datetime(dict[stockcode]['date'], format='%Y-%m-%d')  # 转为时间格式
@@ -123,7 +129,9 @@ else:
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' and 'df_today' not in dir():
         df_today = func_TDX.get_tdx_lastestquote(stocklist)  # 获取当前最新行情
     starttime_tick = time.time()
-    for stockcode in stocklist[:]:
+    tq = tqdm(stocklist[:])
+    for stockcode in tq:
+        tq.set_description(stockcode)
         if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
             df_today_code = df_today.loc[df_today['code'] == stockcode]
             dict[stockcode] = func_TDX.update_stockquote(stockcode, dict[stockcode], df_today_code)
@@ -131,15 +139,15 @@ else:
             now_date = pd.to_datetime(time.strftime("%Y-%m-%d", time.localtime()))
             if now_date in df_gbbq.loc[df_gbbq['code']==stockcode]['权息日'].to_list():
                 dict[stockcode] = func_TDX.make_fq(stockcode, dict[stockcode], df_gbbq, cw_dict)
-        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date=start_date, end_date=end_date)
+        celue2 = CeLue.策略2(dict[stockcode], HS300_信号, start_date=start_date, end_date=end_date).iat[-1]
         if celue2:
             已选出股票列表.append(stockcode)
         else:
             stocklist.remove(stockcode)
             del dict[stockcode]
         # print(f'{stockcode} 用时{(time.time() - starttime_tick):>.2f}秒')
-    print(f'策略2执行完毕，已选出 {len(stocklist):>d} 只股票 用时{(time.time() - starttime_tick):>.2f}秒')
+    print(f'策略2执行完毕，已选出 {len(stocklist):>d} 只股票 用时 {(time.time() - starttime_tick):>.2f} 秒')
 
 # 结果
-print(f'全部完成 共用时{(time.time() - starttime):>.2f}秒 已选出{len(已选出股票列表)}只股票:')
+print(f'全部完成 共用时{(time.time() - starttime):>.2f}秒 已选出 {len(已选出股票列表)} 只股票:')
 print(已选出股票列表)
