@@ -24,7 +24,7 @@ import user_config as ucfg
 # 变量初始化
 used_time = {}  # 创建一个计时字典
 
-print('使用命令行参数 del 删除现有文件并重新生成完整数据')
+print('附带命令行参数 readTDX_lday.py del 删除现有文件并重新生成完整数据')
 # print('参数列表:', str(sys.argv[1:]))
 # print('脚本名:', str(sys.argv[0]))
 
@@ -67,29 +67,28 @@ else:
 # 读取通达信正常交易状态的股票列表。infoharbor_spec.cfg退市文件不齐全，放弃使用
 tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.code',
                          sep='|', header=None, index_col=None, encoding='gbk', dtype={0: str})
-file_list = tdx_stocks[0].tolist()
+file_listsh = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] == "6")]
+file_listsz = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] != "6")]
 
 # 处理深市股票
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
 used_time['sz_begintime'] = time.time()
-for f in tqdm(file_list):
-    if f[0:2] == '00' or f[0:2] == '30':
-        f = 'sz' + f + '.day'
-        if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday/' + f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
-            # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
+for f in tqdm(file_listsz):
+    f = 'sz' + f + '.day'
+    if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday/' + f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
+        # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 used_time['sz_endtime'] = time.time()
 
 # 处理沪市股票
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
 used_time['sh_begintime'] = time.time()
-for f in tqdm(file_list):
+for f in tqdm(file_listsh):
     # 处理沪市sh6开头文件，否则跳过此次循环
-    if f[0:1] == '6':
-        f = 'sh' + f + '.day'
-        if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday/' + f):
-            # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
+    f = 'sh' + f + '.day'
+    if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday/' + f):
+        # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
+        func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 used_time['sh_endtime'] = time.time()
 
 # 处理指数文件

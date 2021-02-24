@@ -604,7 +604,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     # 由于前复权的特性，除权后历史数据都要变。因此未更新数据中不包括除权除息日，只需要计算未更新数据。否则日线数据需要全部重新计算
     # 如果'adj'在df_code的列名单里，表示df_code是已复权过的，只需追加新数据，否则日线数据还是需要全部重新计算
     if cqcx_lastest_date not in df_code.loc[first_index:, 'date'].to_list() and not flag_newstock:
-        if {'adj'}.issubset(df_code.columns):
+        if 'adj' in df_code.columns.to_list():
             flag_attach = True  # 确定为追加模式
             df_code_original = df_code  # 原始code备份为df_code_original，最后合并
             df_code = df_code.iloc[first_index:]  # 切片df_code，只保留需要处理的行
