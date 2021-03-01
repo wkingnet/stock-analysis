@@ -730,8 +730,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         data = data[start_date:end_date]
     data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
     # 最后调整列顺序
-    data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount',
-                                 'adj', '流通股', '流通市值', '换手率'])
+    # data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount', 'adj', '流通股', '流通市值', '换手率'])
     return data
 
 
@@ -782,9 +781,12 @@ def get_tdx_lastestquote(stocklist=None):
             df = pd.concat([df, data], axis=0, ignore_index=True)
         else:
             k = 0
-            tq = tqdm(stocklist_pytdx, ncols=80)
+            tq = tqdm(stocklist_pytdx)
             for v in tq:
-                tq.set_description(v)
+                if type(v) == tuple:
+                    tq.set_description(v[1])
+                else:
+                    tq.set_description(v)
                 if k > 0 and k % 10 == 0:
                     data = api.to_df(api.get_security_quotes(stocklist_pytdx[k - 10:k]))
                     df = pd.concat([df, data], axis=0, ignore_index=True)
@@ -863,11 +865,10 @@ def update_stockquote(code, df_history, df_today):
 
 
 if __name__ == '__main__':
-    # stock_code = '002174'
-    # day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
-    # df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    # df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
-    # df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
-    # if len(df_qfq) > 0:
-    #     df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')
-    get_tdx_lastestquote()
+    stock_code = '000633'
+    day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
+    df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
+    df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
+    if len(df_qfq) > 0:
+        df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')

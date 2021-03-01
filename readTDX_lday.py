@@ -70,30 +70,24 @@ tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.c
 file_listsh = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] == "6")]
 file_listsz = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] != "6")]
 
-# 处理深市股票
+print("处理深市股票")
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
-used_time['sz_begintime'] = time.time()
 for f in tqdm(file_listsz):
     f = 'sz' + f + '.day'
     if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday/' + f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
         # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
-used_time['sz_endtime'] = time.time()
 
-# 处理沪市股票
+print("处理沪市股票")
 # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
-used_time['sh_begintime'] = time.time()
 for f in tqdm(file_listsh):
     # 处理沪市sh6开头文件，否则跳过此次循环
     f = 'sh' + f + '.day'
     if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday/' + f):
         # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
         func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
-used_time['sh_endtime'] = time.time()
 
-# 处理指数文件
-used_time['index_begintime'] = time.time()
-
+print("处理指数文件")
 for i in tqdm(ucfg.index_list):
     # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
     if 'sh' in i:
@@ -101,11 +95,7 @@ for i in tqdm(ucfg.index_list):
     elif 'sz' in i:
         func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', i, ucfg.tdx['csv_index'])
 
-used_time['index_endtime'] = time.time()
 
-print('沪市处理完毕，用时' + str(int(used_time['sh_endtime'] - used_time['sh_begintime'])) + '秒')
-print('深市处理完毕，用时' + str(int(used_time['sz_endtime'] - used_time['sz_begintime'])) + '秒')
-print('指数文件处理完毕，用时' + str(int(used_time['index_endtime'] - used_time['index_begintime'])) + '秒')
 # 通达信文件处理完成
 
 # 处理生成的通达信日线数据，复权加工 部分代码
@@ -115,7 +105,6 @@ df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype=
 cw_dict = func_TDX.readall_local_cwfile()
 tq = tqdm(file_list)
 for filename in tq:
-
     process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk', dtype={'code': str})
     df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)

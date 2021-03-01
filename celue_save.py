@@ -33,9 +33,17 @@ for filename in tq:
         df.to_pickle(ucfg.tdx['pickle'] + os.sep + filename)
     else:
         df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-        if not {'celue_buy'}.issubset(df.columns):
+        if not {'celue_buy', 'celue_buy'}.issubset(df.columns):
             df.insert(df.shape[1], 'celue_buy', np.nan)  # 插入celu2列，赋值NaN
             df.insert(df.shape[1], 'celue_sell', np.nan)  # 插入celu2列，赋值NaN
+        else:
+            # 由于make_fq时fillna将最新的空的celue单元格也填充为0，所以先用循环恢复nan
+            for i in range(1, df.shape[0]):
+                if type(df.at[df.index[-i], 'celue_buy']) == float:
+                    df.at[df.index[-i], 'celue_buy'] = np.nan
+                    df.at[df.index[-i], 'celue_sell'] = np.nan
+                else:
+                    break
         if True in df['celue_buy'].isna().to_list():
             start_date = df.index[np.where(df['celue_buy'].isna())[0][0]]
             end_date = df.index[-1]
