@@ -12,7 +12,7 @@ from rich import print as rprint
 # 在这个方法中编写任何的初始化逻辑。context对象将会在你的算法策略的任何方法之间做传递。
 def init(context):
     # 在context中保存全局变量
-    context.percent = 0.05  # 设定买入比例
+    context.percent = 0.01  # 设定买入比例
     context.stockslist = []
     context.df = {}
     file_list = os.listdir(ucfg.tdx['pickle'])
@@ -88,7 +88,7 @@ __config__ = {
         # 设置策略可交易品种，目前支持 `stock` (股票账户)、`future` (期货账户)，您也可以自行扩展
         "accounts": {
             # 如果想设置使用某个账户，只需要增加对应的初始资金即可
-            "stock": 1000000,
+            "stock": 10000000,
         },
         # 设置初始仓位
         "init_positions": {}
