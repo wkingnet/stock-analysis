@@ -1,15 +1,18 @@
 import os
+import time
 import talib
 import pandas as pd
 import user_config as ucfg
 from rqalpha.apis import *
 from rqalpha import run_func
 from tqdm import tqdm
+from rich import print as rprint
 
 
 # 在这个方法中编写任何的初始化逻辑。context对象将会在你的算法策略的任何方法之间做传递。
 def init(context):
     # 在context中保存全局变量
+    context.percent = 0.05  # 设定买入比例
     context.stockslist = []
     context.df = {}
     file_list = os.listdir(ucfg.tdx['pickle'])
@@ -29,16 +32,13 @@ def init(context):
 
 # before_trading此函数会在每天策略交易开始前被调用，当天只会被调用一次
 def before_trading(context):
-    string = f'净值 {context.portfolio.total_value:>.2f} '
-    string += f'可用 {context.portfolio.cash:>.2f} '
-    string += f'市值 {context.portfolio.market_value:>.2f} '
-    string += f'收益 {context.portfolio.total_returns:>.2%} '
-    logger.info(string)
+    pass
+
 
 # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
 def handle_bar(context, bar_dict):
     for stock in context.stockslist:
-        #logger.info(stock)
+        # logger.info(stock)
         # try当天DF是否有数据。没有的话continue会跳过此次循环不执行下面的语句
         try:
             context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_sell']
@@ -50,29 +50,38 @@ def handle_bar(context, bar_dict):
         current_date = context.now.strftime('%Y-%m-%d')
         if context.df[stock].at[current_date, 'celue_sell'] and cur_position > 0:
             # 进行清仓
-            logger.info("SELL " + str(stock) + " 100%")
+            logger.info(f'SELL {str(stock)} 100%')
             order_target_value(stock, 0)
 
         if context.df[stock].at[current_date, 'celue_buy']:
-            # 买入10%总仓位
-            logger.info("BUY " + str(stock) + " 10%")
-            order_percent(stock, 0.1)
+            # 买入/卖出证券以自动调整该证券的仓位到占有一个目标价值。
+            # 加仓时，percent 代表证券已有持仓的价值加上即将花费的现金（包含税费）的总值占当前投资组合总价值的比例。
+            # 减仓时，percent 代表证券将被调整到的目标价至占当前投资组合总价值的比例。
+            logger.info(f'BUY {str(stock)} {context.percent}')
+            order_percent(stock, context.percent)
 
 
 # after_trading函数会在每天交易结束后被调用，当天只会被调用一次
 def after_trading(context):
-    pass
+    string = f'净值{context.portfolio.total_value:>.2f} '
+    string += f'可用{context.portfolio.cash:>.2f} '
+    string += f'市值{context.portfolio.market_value:>.2f} '
+    # string += f'收益{context.portfolio.total_returns:>.2%} '
+    string += f'持股{len(context.portfolio.positions):>d} '
+    logger.info(string)
+    # rprint(get_positions())
 
 
 __config__ = {
     "base": {
         # 回测起始日期
-        "start_date": "2016-02-22",
+        "start_date": "2016-01-01",
         # 数据源所存储的文件路径
         "data_bundle_path": "C:/Users/king/.rqalpha/bundle/",
         "strategy_file": "huice_rq.py",
         # 目前支持 `1d` (日线回测) 和 `1m` (分钟线回测)，如果要进行分钟线，请注意是否拥有对应的数据源，目前开源版本是不提供对应的数据源的。
         "frequency": "1d",
+        # 启用的回测引擎，目前支持 current_bar (当前Bar收盘价撮合) 和 next_bar (下一个Bar开盘价撮合)
         "matching_type": "current_bar",
         # 运行类型，`b` 为回测，`p` 为模拟交易, `r` 为实盘交易。
         "run_type": "b",
@@ -93,10 +102,10 @@ __config__ = {
         "sys_analyser": {
             "enabled": True,
             "benchmark": "000300.XSHG",
-            #"plot": True,
+            # "plot": True,
             'plot_save_file': "rq_result.png",
             "output_file": "rq_result.pkl",
-            "report_save_path": "rq_result.csv",
+            # "report_save_path": "rq_result.csv",
         },
         # 策略运行过程中显示的进度条的控制
         "sys_progress": {
@@ -106,10 +115,13 @@ __config__ = {
     },
 }
 
+rprint(f'开始时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+
 # 使用 run_func 函数来运行策略
 # 此种模式下，您只需要在当前环境下定义策略函数，并传入指定运行的函数，即可运行策略。
 # 如果你的函数命名是按照 API 规范来，则可以直接按照以下方式来运行
 run_func(**globals())
+rprint(f'结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 
 # RQAlpha可以输出一个 pickle 文件，里面为一个 dict 。keys 包括
 # summary 回测摘要
@@ -123,7 +135,8 @@ run_func(**globals())
 # trades 交易详情（交割单）
 # plots 调用plot画图时，记录的值
 result_dict = pd.read_pickle("rq_result.pkl")
-print(result_dict["summary"])
-print(f"最大收益{result_dict['summary']['total_returns']}%, 年化收益{result_dict['summary']['annualized_returns']}%, "
-      f"基准收益{result_dict['summary']['benchmark_total_returns']}%, 基准年化{result_dict['summary']['benchmark_annualized_returns']}%, "
-      f"最大回撤{result_dict['summary']['max_drawdown']}%")
+rprint(result_dict["summary"])
+rprint(
+    f"最大收益 {result_dict['summary']['total_returns']:>.2%}, 年化收益 {result_dict['summary']['annualized_returns']:>.2%}, "
+    f"基准收益 {result_dict['summary']['benchmark_total_returns']:>.2%}, 基准年化 {result_dict['summary']['benchmark_annualized_returns']:>.2%}, "
+    f"最大回撤 {result_dict['summary']['max_drawdown']:>.2%}")

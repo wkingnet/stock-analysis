@@ -6,17 +6,20 @@ import os
 import sys
 import time
 import threading
+from multiprocessing import Pool, RLock, freeze_support
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
 import CeLue  # 个人策略文件，不分享
 import func_TDX
 import user_config as ucfg
 
 
-def celue_save(file_list, HS300_信号):
+def celue_save(file_list, HS300_信号, tqdm_position=None):
+    #print('\nRun task (%s)' % os.getpid())
     starttime_tick = time.time()
-    tq = tqdm(file_list)
+    tq = tqdm(file_list, position=tqdm_position)
     for filename in tq:
         tq.set_description(filename[:-4])
         # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
@@ -59,7 +62,7 @@ if __name__ == '__main__':
     HS300_信号 = CeLue.策略HS300(df_hs300)
     file_list = os.listdir(ucfg.tdx['pickle'])
 
-    celue_save(file_list, HS300_信号)
+    # celue_save(file_list, HS300_信号)
 
     # 多线程。好像没啥效果提升
     # threads = []
@@ -83,3 +86,25 @@ if __name__ == '__main__':
     # for t in threads:
     #     t.join()
     # print("\n")
+
+    # 多进程
+    print('Parent process %s' % os.getpid())
+    t_num = os.cpu_count()   # 进程数 读取CPU逻辑处理器个数
+    freeze_support()  # for Windows support
+    tqdm.set_lock(RLock())  # for managing output contention
+    p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
+    for i in range(0, t_num):
+        div = int(len(file_list) / t_num)
+        mod = len(file_list) % t_num
+        if i+1 != t_num:
+            # print(i, i * div, (i + 1) * div)
+            p.apply_async(celue_save, args=(file_list[i*div:(i+1)*div], HS300_信号, i))
+        else:
+            # print(i, i * div, (i + 1) * div + mod)
+            p.apply_async(celue_save, args=(file_list[i*div:(i+1)*div+mod], HS300_信号, i))
+    # celue_save(file_list, HS300_信号)
+
+    #print('Waiting for all subprocesses done...')
+    p.close()
+    p.join()
+
