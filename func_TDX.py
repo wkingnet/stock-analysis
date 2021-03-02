@@ -67,7 +67,8 @@ def HHV(series, day):
     """
     # value = max(series[-day:])
     if day == 0:
-        value = series.rolling(series.shape[0]).max()
+        tmp = pd.Series(data=series.max(), index=series.index)
+        value = tmp
     else:
         value = series.rolling(day).max()
     return value
@@ -79,7 +80,8 @@ def LLV(series, day):
     """
     # value = min(value[-day:])
     if day == 0:
-        value = series.rolling(series.shape[0]).min()
+        tmp = pd.Series(data=series.min(), index=series.index)
+        value = tmp
     else:
         value = series.rolling(day).min()
     return value
@@ -94,7 +96,7 @@ def COUNT(series, n):
     for index_true in df.loc[df['cond'] == True].index.to_list():
         index_int = df.index.get_loc(index_true)
         column_int = df.columns.get_loc('result')
-        df.iloc[index_int:index_int+n, column_int] = df.iloc[index_int:index_int+n, column_int] + 1
+        df.iloc[index_int:index_int + n, column_int] = df.iloc[index_int:index_int + n, column_int] + 1
     result = df['result']
     return result
 

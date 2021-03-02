@@ -1,17 +1,30 @@
+import os
 import talib
 import pandas as pd
+import user_config as ucfg
 from rqalpha.apis import *
 from rqalpha import run_func
+from tqdm import tqdm
 
 
 # 在这个方法中编写任何的初始化逻辑。context对象将会在你的算法策略的任何方法之间做传递。
 def init(context):
     # 在context中保存全局变量
-    context.s1 = "000001.XSHE"
-
-    # 设置这个策略当中会用到的参数，在策略中可以随时调用，这个策略使用长短均线，我们在这里设定长线和短线的区间，在调试寻找最佳区间的时候只需要在这里进行数值改动
-    context.SHORTPERIOD = 20
-    context.LONGPERIOD = 120
+    context.stockslist = []
+    context.df = {}
+    file_list = os.listdir(ucfg.tdx['pickle'])
+    tq = tqdm(file_list)
+    for filename in tq:
+        if filename[0:1] == '6':
+            stock = filename[:-4] + ".XSHG"
+        else:
+            stock = filename[:-4] + ".XSHE"
+        tq.set_description(stock)
+        pklfile = ucfg.tdx['pickle'] + os.sep + filename
+        df = pd.read_pickle(pklfile)
+        df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
+        context.df[stock] = df
+        context.stockslist.append(stock)
 
 
 # before_trading此函数会在每天策略交易开始前被调用，当天只会被调用一次
@@ -21,34 +34,26 @@ def before_trading(context):
 
 # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
 def handle_bar(context, bar_dict):
-    # 因为策略需要用到均线，所以需要读取历史数据
-    prices = history_bars(context.s1, context.LONGPERIOD + 1, '1d', 'close')
+    for stock in context.stockslist:
+        #logger.info(stock)
+        # try当天DF是否有数据。没有的话continue会跳过此次循环不执行下面的语句
+        try:
+            context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_sell']
+        except KeyError:
+            continue
 
-    # 使用talib计算长短两根均线，均线以array的格式表达
-    short_avg = talib.SMA(prices, context.SHORTPERIOD)
-    long_avg = talib.SMA(prices, context.LONGPERIOD)
+        # 获取当前投资组合中股票的仓位
+        cur_position = get_position(stock).quantity
 
-    plot("short avg", short_avg[-1])
-    plot("long avg", long_avg[-1])
+        if context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_sell'] and cur_position > 0:
+            # 进行清仓
+            # logger.info("SELL " + str(context.s1) + " 100%")
+            order_target_value(stock, 0)
 
-    # 获取当前投资组合中股票的仓位
-    cur_position = get_position(context.s1).quantity
-    # 计算现在portfolio中的现金可以购买多少股票
-    shares = context.portfolio.cash / bar_dict[context.s1].close
-
-    # 如果短均线从上往下跌破长均线，也就是在目前的bar短线平均值低于长线平均值，而上一个bar的短线平均值高于长线平均值
-    if short_avg[-1] - long_avg[-1] < 0 and short_avg[-2] - long_avg[-2] > 0 and cur_position > 0:
-        # 进行清仓
-        logtmp = "SELL " + str(context.s1) + " 100%"
-        logger.info(logtmp)
-        order_target_value(context.s1, 0)
-
-    # 如果短均线从下往上突破长均线，为入场信号
-    if short_avg[-1] - long_avg[-1] > 0 and short_avg[-2] - long_avg[-2] < 0:
-        # 满仓入股
-        logtmp = "BUY " + str(context.s1) + " 10%"
-        logger.info(logtmp)
-        order_percent(context.s1, 0.1)
+        if context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_buy']:
+            # 买入10%总仓位
+            # logger.info("BUY " + str(context.s1) + " 10%")
+            order_percent(stock, 0.1)
 
 
 # after_trading函数会在每天交易结束后被调用，当天只会被调用一次
@@ -59,7 +64,7 @@ def after_trading(context):
 __config__ = {
     "base": {
         # 回测起始日期
-        "start_date": "2019-01-01",
+        "start_date": "2016-01-01",
         # 数据源所存储的文件路径
         "data_bundle_path": "C:/Users/king/.rqalpha/bundle/",
         "strategy_file": "huice_rq.py",
@@ -85,7 +90,8 @@ __config__ = {
         "sys_analyser": {
             "enabled": True,
             "benchmark": "000300.XSHG",
-            "plot": True,
+            #"plot": True,
+            'plot_save_file': "rq_result.png",
             "output_file": "rq_result.pkl",
         },
         "sys_progress": {
@@ -112,4 +118,7 @@ run_func(**globals())
 # trades 交易详情（交割单）
 # plots 调用plot画图时，记录的值
 result_dict = pd.read_pickle("rq_result.pkl")
-print(result_dict["stock_positions"].tail())
+print(result_dict["summary"])
+print(f"最大收益{result_dict['summary']['total_returns']}%, 年化收益{result_dict['summary']['annualized_returns']}%, "
+      f"基准收益{result_dict['summary']['benchmark_total_returns']}%, 基准年化{result_dict['summary']['benchmark_annualized_returns']}%, "
+      f"最大回撤{result_dict['summary']['max_drawdown']}%")

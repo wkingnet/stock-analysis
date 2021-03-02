@@ -16,7 +16,7 @@ import user_config as ucfg
 
 # 配置部分
 start_date = ''
-end_date = '2021-02-25'
+end_date = ''
 
 # 变量定义
 tdxpath = ucfg.tdx['tdx_path']
