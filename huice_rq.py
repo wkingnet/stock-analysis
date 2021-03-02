@@ -29,8 +29,11 @@ def init(context):
 
 # before_trading此函数会在每天策略交易开始前被调用，当天只会被调用一次
 def before_trading(context):
-    pass
-
+    string = f'净值 {context.portfolio.total_value:>.2f} '
+    string += f'可用 {context.portfolio.cash:>.2f} '
+    string += f'市值 {context.portfolio.market_value:>.2f} '
+    string += f'收益 {context.portfolio.total_returns:>.2%} '
+    logger.info(string)
 
 # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
 def handle_bar(context, bar_dict):
@@ -44,15 +47,15 @@ def handle_bar(context, bar_dict):
 
         # 获取当前投资组合中股票的仓位
         cur_position = get_position(stock).quantity
-
-        if context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_sell'] and cur_position > 0:
+        current_date = context.now.strftime('%Y-%m-%d')
+        if context.df[stock].at[current_date, 'celue_sell'] and cur_position > 0:
             # 进行清仓
-            # logger.info("SELL " + str(context.s1) + " 100%")
+            logger.info("SELL " + str(stock) + " 100%")
             order_target_value(stock, 0)
 
-        if context.df[stock].at[bar_dict.dt.strftime('%Y-%m-%d'), 'celue_buy']:
+        if context.df[stock].at[current_date, 'celue_buy']:
             # 买入10%总仓位
-            # logger.info("BUY " + str(context.s1) + " 10%")
+            logger.info("BUY " + str(stock) + " 10%")
             order_percent(stock, 0.1)
 
 
@@ -64,7 +67,7 @@ def after_trading(context):
 __config__ = {
     "base": {
         # 回测起始日期
-        "start_date": "2016-01-01",
+        "start_date": "2016-02-22",
         # 数据源所存储的文件路径
         "data_bundle_path": "C:/Users/king/.rqalpha/bundle/",
         "strategy_file": "huice_rq.py",
@@ -93,9 +96,11 @@ __config__ = {
             #"plot": True,
             'plot_save_file': "rq_result.png",
             "output_file": "rq_result.pkl",
+            "report_save_path": "rq_result.csv",
         },
+        # 策略运行过程中显示的进度条的控制
         "sys_progress": {
-            "enabled": True,
+            "enabled": False,
             "show": True,
         },
     },

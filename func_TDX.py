@@ -67,8 +67,14 @@ def HHV(series, day):
     """
     # value = max(series[-day:])
     if day == 0:
-        tmp = pd.Series(data=series.max(), index=series.index)
-        value = tmp
+        value = pd.Series(index=series.index, dtype=float)
+        tmp = series.iat[0]
+        value.iat[0] = tmp
+        for i in range(series.shape[0]):
+            if tmp < series.iat[i]:
+                tmp = series.iat[i]
+                value.iat[i] = tmp
+        value = value.fillna(method='ffill')  # 向下填充无效值
     else:
         value = series.rolling(day).max()
     return value
@@ -80,8 +86,14 @@ def LLV(series, day):
     """
     # value = min(value[-day:])
     if day == 0:
-        tmp = pd.Series(data=series.min(), index=series.index)
-        value = tmp
+        value = pd.Series(index=series.index, dtype=float)
+        tmp = series.iat[0]
+        value.iat[0] = tmp
+        for i in range(series.shape[0]):
+            if tmp > series.iat[i]:
+                tmp = series.iat[i]
+                value.iat[i] = tmp
+        value = value.fillna(method='ffill')  # 向下填充无效值
     else:
         value = series.rolling(day).min()
     return value

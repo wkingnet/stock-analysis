@@ -58,4 +58,28 @@ if __name__ == '__main__':
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     HS300_信号 = CeLue.策略HS300(df_hs300)
     file_list = os.listdir(ucfg.tdx['pickle'])
+
     celue_save(file_list, HS300_信号)
+
+    # 多线程。好像没啥效果提升
+    # threads = []
+    # t_num = 4  # 线程数
+    # for i in range(0, t_num):
+    #     div = int(len(file_list) / t_num)
+    #     mod = len(file_list) % t_num
+    #     if i+1 != t_num:
+    #         # print(i, i * div, (i + 1) * div)
+    #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div], HS300_信号)))
+    #     else:
+    #         # print(i, i * div, (i + 1) * div + mod)
+    #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div+mod], HS300_信号)))
+    # # celue_save(file_list, HS300_信号)
+    # 
+    # print(threads)
+    # for t in threads:
+    #     t.setDaemon(True)
+    #     t.start()
+    # 
+    # for t in threads:
+    #     t.join()
+    # print("\n")
