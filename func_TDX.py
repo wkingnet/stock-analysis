@@ -742,7 +742,9 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
         data = data[:end_date]
     elif len(start_date) != 0 and len(end_date) != 0:
         data = data[start_date:end_date]
-    data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第一列，保存为str '1991-01-01' 格式
+    data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第1列，保存为str '1991-01-01' 格式
+    del data['code']  # 删除code列再重新插入，相当于调整code列到第一列
+    data.insert(0, 'code', code)
     # 最后调整列顺序
     # data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount', 'adj', '流通股', '流通市值', '换手率'])
     return data
@@ -879,10 +881,11 @@ def update_stockquote(code, df_history, df_today):
 
 
 if __name__ == '__main__':
-    stock_code = '000633'
+    stock_code = '000001'
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index_col=None, encoding='gbk')
+    df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv',
+                         index_col=None, encoding='gbk', dtype={'code': str})
     df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
     if len(df_qfq) > 0:
         df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')
