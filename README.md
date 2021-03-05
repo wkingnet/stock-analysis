@@ -133,9 +133,10 @@
 |                       通达信开心果版本                       | v2020.12 |
 |                      python (anaconda)                       |  3.8.5   |
 |                            pytdx                             |   1.72   |
+|                          pyecharts                           |  1.9.0   |
 | ta-lib（安装方法：在cmd上使用“pip install talib”命令一般会报错，正确安装方法是，进入*[https://www.lfd.uci.edu/~gohlke/pythonlibs/](https://link.zhihu.com/?target=https%3A//www.lfd.uci.edu/~gohlke/pythonlibs/)*，下拉选择TA_Lib-0.4.17-cp37-cp37m-win_amd64.whl（win系统64位，python3.7版本，根据自己系统和python版本选择相应的安装包），将下载包放在当前工作路径中，然后在Anaconda Prompt（或windows的cmd）里面输入命令：pip install TA_Lib-0.4.17-cp27-cp27m-win_amd64.whl） |  0.4.19  |
 
-其他缺什么库运行时报错自己pip安装一下
+其他都是辅助库。缺什么库运行时报错自己pip安装一下即可
 
 ## 开发日志
 
