@@ -115,13 +115,13 @@ __config__ = {
     },
 }
 
-rprint(f'开始时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+start_time = f'开始时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}'
 
 # 使用 run_func 函数来运行策略
 # 此种模式下，您只需要在当前环境下定义策略函数，并传入指定运行的函数，即可运行策略。
 # 如果你的函数命名是按照 API 规范来，则可以直接按照以下方式来运行
 run_func(**globals())
-rprint(f'结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+end_time = f'结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}'
 
 # RQAlpha可以输出一个 pickle 文件，里面为一个 dict 。keys 包括
 # summary 回测摘要
@@ -136,6 +136,8 @@ rprint(f'结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 # plots 调用plot画图时，记录的值
 result_dict = pd.read_pickle("rq_result.pkl")
 rprint(result_dict["summary"])
+rprint(start_time)
+rprint(end_time)
 rprint(
     f"最大收益 {result_dict['summary']['total_returns']:>.2%}, 年化收益 {result_dict['summary']['annualized_returns']:>.2%}, "
     f"基准收益 {result_dict['summary']['benchmark_total_returns']:>.2%}, 基准年化 {result_dict['summary']['benchmark_annualized_returns']:>.2%}, "

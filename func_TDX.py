@@ -185,7 +185,7 @@ def day2csv(source_dir, file_name, target_dir):
     if not os.path.isfile(target_path):
         # 目标文件不存在。写入表头行。begin从0开始转换
         target_file = open(target_path, 'w', encoding="utf-8")  # 以覆盖写模式打开文件
-        header = str('code') + ',' + str('date') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
+        header = str('date') + ',' + str('code') + ',' + str('open') + ',' + str('high') + ',' + str('low') + ',' \
                  + str('close') + ',' + str('vol') + ',' + str('amount')
         target_file.write(header)
         begin = 0
@@ -235,8 +235,8 @@ def day2csv(source_dir, file_name, target_dir):
         # a[0]  将’19910404'样式的字符串转为'1991-05-05'格式的字符串。为了统一日期格式
         a_date = str(a[0])[0:4] + '-' + str(a[0])[4:6] + '-' + str(a[0])[6:8]
         file_name[2:-4]
-        line = '\n' + file_name[2:-4] + ',' \
-               + str(a_date) + ',' \
+        line = '\n' + str(a_date) + ',' \
+               + file_name[2:-4] + ',' \
                + str(a[1] / 100.0) + ',' \
                + str(a[2] / 100.0) + ',' \
                + str(a[3] / 100.0) + ',' \
@@ -743,8 +743,6 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     elif len(start_date) != 0 and len(end_date) != 0:
         data = data[start_date:end_date]
     data.reset_index(drop=False, inplace=True)  # 重置索引行，数字索引，date列到第1列，保存为str '1991-01-01' 格式
-    del data['code']  # 删除code列再重新插入，相当于调整code列到第一列
-    data.insert(0, 'code', code)
     # 最后调整列顺序
     # data = data.reindex(columns=['code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount', 'adj', '流通股', '流通市值', '换手率'])
     return data

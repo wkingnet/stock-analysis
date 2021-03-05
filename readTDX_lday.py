@@ -23,34 +23,7 @@ import func_TDX
 import user_config as ucfg
 
 
-def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
-    tq = tqdm(file_list, position=tqdm_position)
-    for filename in tq:
-        process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
-        df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk',
-                             dtype={'code': str})
-        df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
-        lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
-                            * (len(file_list) - (file_list.index(filename) + 1)))
-        if len(df_qfq) > 0:  # 返回值大于0，表示有更新
-            df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
-            df_qfq.to_pickle(ucfg.tdx['pickle'] + os.sep + filename[:-4] + '.pkl')
-            tq.set_description(filename + "复权完成")
-        #     print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
-        else:
-            tq.set_description(filename + "无需更新")
-        #     print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
-
-
-if __name__ == '__main__':
-    # 变量初始化
-    used_time = {}  # 创建一个计时字典
-
-    print('附带命令行参数 readTDX_lday.py del 删除现有文件并重新生成完整数据')
-    # print('参数列表:', str(sys.argv[1:]))
-    # print('脚本名:', str(sys.argv[0]))
-
-    # 主程序开始
+def check_files_exist():
     # 判断目录和文件是否存在，存在则直接删除
     if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index']):
         # choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
@@ -86,6 +59,8 @@ if __name__ == '__main__':
         os.mkdir(ucfg.tdx['csv_lday'])
         os.mkdir(ucfg.tdx['csv_index'])
 
+
+def update_lday():
     # 读取通达信正常交易状态的股票列表。infoharbor_spec.cfg退市文件不齐全，放弃使用
     tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.code',
                              sep='|', header=None, index_col=None, encoding='gbk', dtype={0: str})
@@ -117,6 +92,33 @@ if __name__ == '__main__':
         elif 'sz' in i:
             func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', i, ucfg.tdx['csv_index'])
 
+
+def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
+    tq = tqdm(file_list, position=tqdm_position)
+    for filename in tq:
+        # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
+        df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk',
+                             dtype={'code': str})
+        df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
+        # lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))
+        if len(df_qfq) > 0:  # 返回值大于0，表示有更新
+            df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
+            df_qfq.to_pickle(ucfg.tdx['pickle'] + os.sep + filename[:-4] + '.pkl')
+            tq.set_description(filename + "复权完成")
+        #     print(f'{process_info} 复权完成 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+        else:
+            tq.set_description(filename + "无需更新")
+        #     print(f'{process_info} 无需更新 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+
+
+if __name__ == '__main__':
+    print('附带命令行参数 readTDX_lday.py del 删除现有文件并重新生成完整数据')
+    # print('参数列表:', str(sys.argv[1:]))
+    # print('脚本名:', str(sys.argv[0]))
+
+    # 主程序开始
+    check_files_exist()
+    update_lday()
     # 通达信文件处理完成
 
     # 处理生成的通达信日线数据，复权加工代码
@@ -127,20 +129,18 @@ if __name__ == '__main__':
 
     # 多进程
     print('Parent process %s' % os.getpid())
-    t_num = os.cpu_count()  # 进程数 读取CPU逻辑处理器个数
+    t_num = os.cpu_count()-2  # 进程数 读取CPU逻辑处理器个数
+    div, mod = int(len(file_list) / t_num), len(file_list) % t_num
     freeze_support()  # for Windows support
     tqdm.set_lock(RLock())  # for managing output contention
     p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
     for i in range(0, t_num):
-        div = int(len(file_list) / t_num)
-        mod = len(file_list) % t_num
         if i + 1 != t_num:
             # print(i, i * div, (i + 1) * div)
             p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div], df_gbbq, cw_dict, i))
         else:
             # print(i, i * div, (i + 1) * div + mod)
             p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div + mod], df_gbbq, cw_dict, i))
-
     p.close()
     p.join()
 

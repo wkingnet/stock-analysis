@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     # 多进程
     print('Parent process %s' % os.getpid())
-    t_num = os.cpu_count()   # 进程数 读取CPU逻辑处理器个数
+    t_num = os.cpu_count()-2   # 进程数 读取CPU逻辑处理器个数
     freeze_support()  # for Windows support
     tqdm.set_lock(RLock())  # for managing output contention
     p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
