@@ -47,7 +47,7 @@
 ![功能截图](https://images.gitee.com/uploads/images/2021/0225/181340_fd82dd5e_5346376.png "QQ截图20210225181254.png")
 软件运行截图
 ![显示策略持仓区域](https://images.gitee.com/uploads/images/2021/0305/220211_5b2f75b3_5346376.png "QQ截图20210305215647.png")
-显示策略持仓区域，红赚绿亏
+高亮显示策略历史持仓区域，红赚绿亏
 
 ### 项目进度
 
