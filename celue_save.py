@@ -17,8 +17,9 @@ import user_config as ucfg
 
 
 def celue_save(file_list, HS300_信号, tqdm_position=None):
-    #print('\nRun task (%s)' % os.getpid())
+    # print('\nRun task (%s)' % os.getpid())
     starttime_tick = time.time()
+    df_celue = pd.DataFrame()
     tq = tqdm(file_list, position=tqdm_position)
     for filename in tq:
         tq.set_description(filename[:-4])
@@ -52,7 +53,11 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
             df.to_pickle(ucfg.tdx['pickle'] + os.sep + filename)
         lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1)
                             * (len(file_list) - (file_list.index(filename) + 1)))
+
+        # 提取celue是true的列，单独保存到一个df，返回这个df
+        df_celue = df_celue.append(df.loc[df['celue_buy'] | df['celue_sell']])
         # print(f'{process_info} 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+    return df_celue
 
 
 if __name__ == '__main__':
@@ -89,22 +94,30 @@ if __name__ == '__main__':
 
     # 多进程
     print('Parent process %s' % os.getpid())
-    t_num = os.cpu_count()-2   # 进程数 读取CPU逻辑处理器个数
+    t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
     freeze_support()  # for Windows support
     tqdm.set_lock(RLock())  # for managing output contention
     p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
+    pool_result = []  # 存放pool池的返回对象列表
     for i in range(0, t_num):
         div = int(len(file_list) / t_num)
         mod = len(file_list) % t_num
-        if i+1 != t_num:
+        if i + 1 != t_num:
             # print(i, i * div, (i + 1) * div)
-            p.apply_async(celue_save, args=(file_list[i*div:(i+1)*div], HS300_信号, i))
+            pool_result.append(p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div], HS300_信号, i)))
         else:
             # print(i, i * div, (i + 1) * div + mod)
-            p.apply_async(celue_save, args=(file_list[i*div:(i+1)*div+mod], HS300_信号, i))
+            pool_result.append(p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div + mod], HS300_信号, i)))
     # celue_save(file_list, HS300_信号)
 
-    #print('Waiting for all subprocesses done...')
+    # print('Waiting for all subprocesses done...')
     p.close()
     p.join()
 
+    # 处理celue汇总.csv文件。保存为csv文件，方便查看
+    df_celue = pd.DataFrame()
+    # 读取pool的返回对象列表。i.get()是读取方法。拼接每个子进程返回的df
+    for i in pool_result:
+        df_celue = df_celue.append(i.get())
+    df_celue = df_celue.sort_index().reset_index(drop=True)
+    df_celue.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'celue汇总.csv', index=True, encoding='gbk')
