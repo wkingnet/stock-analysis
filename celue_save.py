@@ -29,8 +29,10 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
         pklfile = ucfg.tdx['pickle'] + os.sep + filename
         df = pd.read_pickle(pklfile)
         if 'del' in sys.argv[1:]:
-            del df['celue_buy']
-            del df['celue_sell']
+            if 'celue_buy' in df.columns:
+                del df['celue_buy']
+            if 'celue_sell' in df.columns:
+                del df['celue_sell']
         df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
         if not {'celue_buy', 'celue_buy'}.issubset(df.columns):
             df.insert(df.shape[1], 'celue_buy', np.nan)  # 插入celu2列，赋值NaN
@@ -61,6 +63,7 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
         # print(f'{process_info} 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
     df_celue['date'] = pd.to_datetime(df_celue['date'], format='%Y-%m-%d')  # 转为时间格式
     df_celue.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
+
     return df_celue
 
 
