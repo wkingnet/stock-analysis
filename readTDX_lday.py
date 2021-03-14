@@ -94,7 +94,7 @@ def update_lday():
 
 
 def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
-    tq = tqdm(file_list, position=tqdm_position)
+    tq = tqdm(file_list, leave=False, position=tqdm_position)
     for filename in tq:
         # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
         df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk',
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     cw_dict = func_TDX.readall_local_cwfile()
 
     # 多进程
-    print('Parent process %s' % os.getpid())
+    # print('Parent process %s' % os.getpid())
     t_num = os.cpu_count()-2  # 进程数 读取CPU逻辑处理器个数
     div, mod = int(len(file_list) / t_num), len(file_list) % t_num
     freeze_support()  # for Windows support

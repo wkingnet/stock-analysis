@@ -8,11 +8,14 @@ from rqalpha import run_func
 from tqdm import tqdm
 from rich import print as rprint
 
-start_date = "2017-01-01"  # 回测起始日期
+
+# 回测变量定义
+start_date = "2016-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
-xiadan_percent = 0.1  # 设定买入比例
-xiadan_target_value = 100000  # 设定具体股票总买入市值
-order_type = 'order_target_value'  # 下单模式， 'order_percent' or 'order_target_value'
+xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
+xiadan_target_value = 100000  # 设定具体股票买入持有总金额
+# 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
+order_type = 'order_target_value'
 
 
 def update_stockcode(stockcode):
@@ -57,7 +60,7 @@ def init(context):
 def before_trading(context):
     current_date = context.now.strftime('%Y-%m-%d')
     # 提取当天的df_celue
-    context.df_today = context.df_celue[current_date:current_date]
+    context.df_today = context.df_celue.loc[current_date]
 
 
 # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新

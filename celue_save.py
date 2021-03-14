@@ -5,7 +5,6 @@
 import os
 import sys
 import time
-import threading
 from multiprocessing import Pool, RLock, freeze_support
 import numpy as np
 import pandas as pd
@@ -20,13 +19,16 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
     # print('\nRun task (%s)' % os.getpid())
     starttime_tick = time.time()
     df_celue = pd.DataFrame()
-    tq = tqdm(file_list, position=tqdm_position)
+    if 'single' in sys.argv[1:]:
+        tq = tqdm(file_list)
+    else:
+        tq = tqdm(file_list, leave=False, position=tqdm_position)
     for filename in tq:
         tq.set_description(filename[:-4])
         # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
         pklfile = ucfg.tdx['pickle'] + os.sep + filename
         df = pd.read_pickle(pklfile)
-        if 'del' in str(sys.argv[1:]):
+        if 'del' in sys.argv[1:]:
             del df['celue_buy']
             del df['celue_sell']
         df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
@@ -61,63 +63,69 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
 
 
 if __name__ == '__main__':
+    print(f'附带参数 del 完全重新生成策略信号, 参数 single 单进程执行（默认多进程）')
     df_hs300 = pd.read_csv(ucfg.tdx['csv_index'] + '/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
     df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     HS300_信号 = CeLue.策略HS300(df_hs300)
     file_list = os.listdir(ucfg.tdx['pickle'])
 
-    # celue_save(file_list, HS300_信号)
+    if 'single' in sys.argv[1:]:
+        df_celue = celue_save(file_list, HS300_信号)
+    else:
+        # 多线程。好像没啥效果提升
+        # threads = []
+        # t_num = 4  # 线程数
+        # for i in range(0, t_num):
+        #     div = int(len(file_list) / t_num)
+        #     mod = len(file_list) % t_num
+        #     if i+1 != t_num:
+        #         # print(i, i * div, (i + 1) * div)
+        #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div], HS300_信号)))
+        #     else:
+        #         # print(i, i * div, (i + 1) * div + mod)
+        #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div+mod], HS300_信号)))
+        # # celue_save(file_list, HS300_信号)
+        #
+        # print(threads)
+        # for t in threads:
+        #     t.setDaemon(True)
+        #     t.start()
+        #
+        # for t in threads:
+        #     t.join()
+        # print("\n")
 
-    # 多线程。好像没啥效果提升
-    # threads = []
-    # t_num = 4  # 线程数
-    # for i in range(0, t_num):
-    #     div = int(len(file_list) / t_num)
-    #     mod = len(file_list) % t_num
-    #     if i+1 != t_num:
-    #         # print(i, i * div, (i + 1) * div)
-    #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div], HS300_信号)))
-    #     else:
-    #         # print(i, i * div, (i + 1) * div + mod)
-    #         threads.append(threading.Thread(target=celue_save, args=(file_list[i*div:(i+1)*div+mod], HS300_信号)))
-    # # celue_save(file_list, HS300_信号)
-    # 
-    # print(threads)
-    # for t in threads:
-    #     t.setDaemon(True)
-    #     t.start()
-    # 
-    # for t in threads:
-    #     t.join()
-    # print("\n")
 
-    # 多进程
-    print('Parent process %s' % os.getpid())
-    t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
-    freeze_support()  # for Windows support
-    tqdm.set_lock(RLock())  # for managing output contention
-    p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
-    pool_result = []  # 存放pool池的返回对象列表
-    for i in range(0, t_num):
-        div = int(len(file_list) / t_num)
-        mod = len(file_list) % t_num
-        if i + 1 != t_num:
-            # print(i, i * div, (i + 1) * div)
-            pool_result.append(p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div], HS300_信号, i)))
-        else:
-            # print(i, i * div, (i + 1) * div + mod)
-            pool_result.append(p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div + mod], HS300_信号, i)))
-    # celue_save(file_list, HS300_信号)
+        # 多进程
+        # print('Parent process %s' % os.getpid())
+        t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
+        freeze_support()  # for Windows support
+        tqdm.set_lock(RLock())  # for managing output contention
+        p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
+        pool_result = []  # 存放pool池的返回对象列表
+        for i in range(0, t_num):
+            div = int(len(file_list) / t_num)
+            mod = len(file_list) % t_num
+            if i + 1 != t_num:
+                # print(i, i * div, (i + 1) * div)
+                pool_result.append(p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div], HS300_信号, i)))
+            else:
+                # print(i, i * div, (i + 1) * div + mod)
+                pool_result.append(
+                    p.apply_async(celue_save, args=(file_list[i * div:(i + 1) * div + mod], HS300_信号, i)))
+        # celue_save(file_list, HS300_信号)
 
-    # print('Waiting for all subprocesses done...')
-    p.close()
-    p.join()
+        # print('Waiting for all subprocesses done...')
+        p.close()
+        p.join()
 
-    # 处理celue汇总.csv文件。保存为csv文件，方便查看
-    df_celue = pd.DataFrame()
-    # 读取pool的返回对象列表。i.get()是读取方法。拼接每个子进程返回的df
-    for i in pool_result:
-        df_celue = df_celue.append(i.get())
+        # 处理celue汇总.csv文件。保存为csv文件，方便查看
+        df_celue = pd.DataFrame()
+        # 读取pool的返回对象列表。i.get()是读取方法。拼接每个子进程返回的df
+        for i in pool_result:
+            df_celue = df_celue.append(i.get())
     df_celue = df_celue.sort_index().reset_index(drop=True)
     df_celue.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'celue汇总.csv', index=True, encoding='gbk')
+
+    print(f'全部处理完成，程序退出')
