@@ -59,6 +59,8 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
         # 提取celue是true的列，单独保存到一个df，返回这个df
         df_celue = df_celue.append(df.loc[df['celue_buy'] | df['celue_sell']])
         # print(f'{process_info} 已用{(time.time() - starttime_tick):.2f}秒 剩余预计{lefttime_tick}秒')
+    df_celue['date'] = pd.to_datetime(df_celue['date'], format='%Y-%m-%d')  # 转为时间格式
+    df_celue.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     return df_celue
 
 
@@ -70,7 +72,11 @@ if __name__ == '__main__':
     HS300_信号 = CeLue.策略HS300(df_hs300)
     file_list = os.listdir(ucfg.tdx['pickle'])
 
+    if 'del' in sys.argv[1:]:
+        print(f'检测到参数 del, 完全重新生成策略信号')
+
     if 'single' in sys.argv[1:]:
+        print(f'检测到参数 single, 单进程执行')
         df_celue = celue_save(file_list, HS300_信号)
     else:
         # 多线程。好像没啥效果提升
