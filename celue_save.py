@@ -105,7 +105,6 @@ if __name__ == '__main__':
         #     t.join()
         # print("\n")
 
-
         # 多进程
         # print('Parent process %s' % os.getpid())
         t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
@@ -134,7 +133,11 @@ if __name__ == '__main__':
         # 读取pool的返回对象列表。i.get()是读取方法。拼接每个子进程返回的df
         for i in pool_result:
             df_celue = df_celue.append(i.get())
-    df_celue = df_celue.sort_index().reset_index(drop=True)
+    df_celue = (df_celue
+                .drop(["open", "high", "low", "vol", "amount", "adj", "流通股", "流通市值", "换手率"], axis=1)
+                .sort_index()
+                .reset_index(drop=True)
+                )
     df_celue.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'celue汇总.csv', index=True, encoding='gbk')
 
     print(f'全部处理完成，程序退出')

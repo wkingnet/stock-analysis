@@ -8,7 +8,6 @@ from rqalpha import run_func
 from tqdm import tqdm
 from rich import print as rprint
 
-
 # 回测变量定义
 start_date = "2016-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
@@ -62,11 +61,13 @@ def before_trading(context):
     # 提取当天的df_celue
     if current_date in context.df_celue.index:
         context.df_today = context.df_celue.loc[[current_date]]
+    else:
+        context.df_today = None
 
 
 # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
 def handle_bar(context, bar_dict):
-    if len(context.df_today) > 0:
+    if context.df_today is not None:
         for index, row in context.df_today.iterrows():
             # logger.info(index, row)
 
@@ -75,8 +76,8 @@ def handle_bar(context, bar_dict):
 
             # 卖出股票
             if row['celue_sell'] and cur_position > 0:
-                # logger.info(f"SELL {row['code']} 100%")
                 order_target_value(row['code'], 0)
+                logger.info(f"SELL {row['code']} -> 0")
 
             # 买入股票
             if row['celue_buy'] and cur_position == 0:
@@ -85,7 +86,7 @@ def handle_bar(context, bar_dict):
                     # 加仓时，percent 代表证券已有持仓的价值加上即将花费的现金（包含税费）的总值占当前投资组合总价值的比例。
                     # 减仓时，percent 代表证券将被调整到的目标价至占当前投资组合总价值的比例。
                     order_percent(row['code'], context.percent)
-                    logger.info(f"BUY {row['code']} {context.percent}")
+                    logger.info(f"BUY {row['code']} -> {context.percent}")
 
                 elif context.order_type == 'order_target_value':
                     # 买入 / 卖出并且自动调整该证券的仓位到一个目标价值。
@@ -93,18 +94,18 @@ def handle_bar(context, bar_dict):
                     # 减仓时，cash_amount代表调整仓位的目标价至。
                     # 需要注意，如果资金不足，该API将不会创建发送订单。
                     order_target_value(row['code'], context.target_value)
-                    logger.info(f"BUY {row['code']} {context.target_value}")
+                    logger.info(f"BUY {row['code']} -> {context.target_value}")
 
 
 # after_trading函数会在每天交易结束后被调用，当天只会被调用一次
 def after_trading(context):
+    #rprint(get_open_orders())
     string = f'净值{context.portfolio.total_value:>.2f} '
     string += f'可用{context.portfolio.cash:>.2f} '
     string += f'市值{context.portfolio.market_value:>.2f} '
     # string += f'收益{context.portfolio.total_returns:>.2%} '
     string += f'持股{len(context.portfolio.positions):>d} '
     logger.info(string)
-    # rprint(get_positions())
 
 
 __config__ = {
