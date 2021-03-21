@@ -1,7 +1,10 @@
 import os
+import copy
 import time
+import pickle
 import talib
 import pandas as pd
+import numpy as np
 import user_config as ucfg
 from rqalpha.apis import *
 from rqalpha import run_func
@@ -11,7 +14,7 @@ from rich import print as rprint
 # 回测变量定义
 start_date = "2016-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
-xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
+xiadan_percent = 0.05  # 设定买入总资产百分比的股票份额
 xiadan_target_value = 100000  # 设定具体股票买入持有总金额
 # 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
 order_type = 'order_target_value'
@@ -31,21 +34,6 @@ def init(context):
     context.percent = xiadan_percent  # 设定买入比例
     context.target_value = xiadan_target_value  # 设定具体股票总买入市值
     context.order_type = order_type  # 下单模式
-    # context.stockslist = []
-    # context.df = {}
-    # file_list = os.listdir(ucfg.tdx['pickle'])
-    # tq = tqdm(file_list)
-    # for filename in tq:
-    #     if filename[0:1] == '6':
-    #         stock = filename[:-4] + ".XSHG"
-    #     else:
-    #         stock = filename[:-4] + ".XSHE"
-    #     tq.set_description(stock)
-    #     pklfile = ucfg.tdx['pickle'] + os.sep + filename
-    #     df = pd.read_pickle(pklfile)
-    #     df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
-    #     context.df[stock] = df
-    #     context.stockslist.append(stock)
 
     df_celue = pd.read_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'celue汇总.csv',
                            index_col=0, encoding='gbk', dtype={'code': str})
@@ -57,6 +45,7 @@ def init(context):
 
 # before_trading此函数会在每天策略交易开始前被调用，当天只会被调用一次
 def before_trading(context):
+    context.stock_pnl = pd.DataFrame()
     current_date = context.now.strftime('%Y-%m-%d')
     # 提取当天的df_celue
     if current_date in context.df_celue.index:
@@ -71,22 +60,54 @@ def handle_bar(context, bar_dict):
         for index, row in context.df_today.iterrows():
             # logger.info(index, row)
 
-            # 获取当前投资组合中具体股票的仓位
-            cur_position = get_position(row['code']).quantity
+            # 获取当前投资组合中具体股票的数据
+            cur_quantity = get_position(row['code']).quantity  # 该股持仓量
+            cur_pnl = get_position(row['code']).pnl  # 该股持仓的累积盈亏
 
             # 卖出股票
-            if row['celue_sell'] and cur_position > 0:
-                order_target_value(row['code'], 0)
-                logger.info(f"SELL {row['code']} -> 0")
+            if row['celue_sell'] and cur_quantity > 0:
+                order_result_obj = order_target_value(row['code'], 0)
+
+                # order_result_obj.unfilled_quantity>0表示有未成交的委托股数，进行补单操作
+                if order_result_obj.unfilled_quantity == 0:
+                    # 委托单成交
+                    logger.info(f"SELL {row['code']}, 盈亏{round(get_position(row['code']).position_pnl, 2)}")
+
+                    buy_price = context.df_celue.loc[(context.df_celue['code'] == row['code'])
+                                                     & (context.df_celue['celue_buy'] == True)
+                                                     & (context.df_celue['date'] < context.now.strftime('%Y-%m-%d'))
+                                                     ].iloc[-1].close
+                    sell_price = context.df_today.loc[(context.df_today['code'] == row['code'])].iloc[-1].close
+                    series = pd.Series(data={"trading_datetime": context.now,
+                                             "order_book_id": row['code'],
+                                             "side": "SELL",
+                                             "盈亏金额": cur_pnl,
+                                             "盈亏率": round(sell_price/buy_price-1, 4),
+                                             })
+                    context.stock_pnl = context.stock_pnl.append(series, ignore_index=True)
+                else:
+                    # 委托单未成交
+                    logger.info(f"{row['code']} {get_next_trading_date(context.now.strftime('%Y-%m-%d'))} 进行补单操作")
+                    row_new = copy.copy(row)
+                    # 获取下一个交易日日期，并赋值。新DF行附加到context.df_celue
+                    row_new['date'] = get_next_trading_date(context.now.strftime('%Y-%m-%d'), 1)
+                    row_new = pd.DataFrame(row_new).T.set_index('date', drop=False)
+                    context.df_celue = context.df_celue.append(row_new)
+                    # 根据日期删除有隐患，可能删除当日所有记录。不删程序也不影响
+                    # context.df_celue.drop(
+                    #     context.df_celue.loc[(context.df_celue['date'] == row['date'])
+                    #                          & (context.df_celue['code'] == row['code'])].index,
+                    #     inplace=True,
+                    # )
 
             # 买入股票
-            if row['celue_buy'] and cur_position == 0:
+            if row['celue_buy'] and cur_quantity == 0:
                 if context.order_type == 'order_percent':
                     # 买入/卖出证券以自动调整该证券的仓位到占有一个目标价值。
                     # 加仓时，percent 代表证券已有持仓的价值加上即将花费的现金（包含税费）的总值占当前投资组合总价值的比例。
                     # 减仓时，percent 代表证券将被调整到的目标价至占当前投资组合总价值的比例。
                     order_percent(row['code'], context.percent)
-                    logger.info(f"BUY {row['code']} -> {context.percent}")
+                    logger.info(f"BUY {row['code']}")
 
                 elif context.order_type == 'order_target_value':
                     # 买入 / 卖出并且自动调整该证券的仓位到一个目标价值。
@@ -94,18 +115,23 @@ def handle_bar(context, bar_dict):
                     # 减仓时，cash_amount代表调整仓位的目标价至。
                     # 需要注意，如果资金不足，该API将不会创建发送订单。
                     order_target_value(row['code'], context.target_value)
-                    logger.info(f"BUY {row['code']} -> {context.target_value}")
+                    logger.info(f"BUY {row['code']}")
 
 
 # after_trading函数会在每天交易结束后被调用，当天只会被调用一次
 def after_trading(context):
-    #rprint(get_open_orders())
     string = f'净值{context.portfolio.total_value:>.2f} '
     string += f'可用{context.portfolio.cash:>.2f} '
     string += f'市值{context.portfolio.market_value:>.2f} '
     # string += f'收益{context.portfolio.total_returns:>.2%} '
     string += f'持股{len(context.portfolio.positions):>d} '
     logger.info(string)
+
+    if len(context.stock_pnl) > 0:
+        if os.path.exists('temp.csv'):
+            context.stock_pnl.to_csv('temp.csv', encoding='gbk', mode='a', header=False)  # 附加数据，无标题行
+        else:
+            context.stock_pnl.to_csv('temp.csv', encoding='gbk', header=True)
 
 
 __config__ = {
@@ -171,6 +197,19 @@ end_time = f'程序结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.local
 # trades 交易详情（交割单）
 # plots 调用plot画图时，记录的值
 result_dict = pd.read_pickle("rq_result.pkl")
+
+# 给rq_result.pkl的交割单添加个股盈亏和收益率统计
+df_trades = result_dict['trades']
+df_temp = pd.read_csv('temp.csv', index_col=0, encoding='gbk').set_index('trading_datetime', drop=False)  # 个股卖出盈亏金额DF
+df_temp.index.name = 'datetime'  # 重置index的name
+df_temp = pd.merge(df_trades, df_temp, how='right')  # merge，以df_temp为准。相当于更新df_temp
+df_trades = pd.merge(df_trades, df_temp, how='left')  # merge，以df_trades为准。相当于更新df_trades
+result_dict['trades'] = df_trades
+with open("rq_result.pkl", 'wb') as fobj:
+    pickle.dump(result_dict, fobj)
+os.remove('temp.csv')
+
+
 rprint(result_dict["summary"])
 rprint(start_time)
 rprint(end_time)
