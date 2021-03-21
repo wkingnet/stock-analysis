@@ -20,8 +20,8 @@ from pyecharts import options as opts
 from pyecharts.commons.utils import JsCode
 
 if __name__ == '__main__':
-    stock_code = '000623'
-    df_stock = pd.read_pickle("d:/TDXdata/pickle/" + stock_code + ".pkl")
+    stock_code = '600362'
+    df_stock = pd.read_pickle(ucfg.tdx["pickle"] + os.sep + stock_code + ".pkl")
     # df_stock['date'] = pd.to_datetime(df_stock['date'], format='%Y-%m-%d')  # 转为时间格式
     # df_stock.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     # print(df_stock)
