@@ -9,6 +9,7 @@ from multiprocessing import Pool, RLock, freeze_support
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from rich import print
 
 import CeLue  # 个人策略文件，不分享
 import func_TDX
@@ -73,22 +74,21 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
 
 
 if __name__ == '__main__':
-    print(f'附带参数 del 完全重新生成策略信号, 参数 single 单进程执行（默认多进程）')
+    print(f'附带命令行参数 del 完全重新生成策略信号, 参数 single 单进程执行(默认多进程)')
     df_hs300 = pd.read_csv(ucfg.tdx['csv_index'] + '/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
     df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     HS300_信号 = CeLue.策略HS300(df_hs300)
-    print("生成股票列表")
     stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['pickle'])]
-    print(f'共 {len(stocklist)} 只股票')
-    print("剔除通达信概念股票")
+    print(f'生成股票列表, 共 {len(stocklist)} 只股票')
+    print(f'剔除通达信概念股票: {要剔除的通达信概念}')
     tmplist = []
     df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
     # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
     for i in 要剔除的通达信概念:
         tmplist = tmplist + df.loc[df['blockname'] == i]['code'].tolist()
     stocklist = list(filter(lambda i: i not in tmplist, stocklist))
-    print("剔除通达信行业股票")
+    print(f'剔除通达信行业股票: {要剔除的通达信行业}')
     tmplist = []
     df = pd.read_csv(ucfg.tdx['tdx_path'] + os.sep + 'T0002' + os.sep + 'hq_cache' + os.sep + "tdxhy.cfg",
                      sep='|', header=None, dtype='object')
