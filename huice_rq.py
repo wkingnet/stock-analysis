@@ -14,10 +14,15 @@ from rich import print as rprint
 # 回测变量定义
 start_date = "2016-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
-xiadan_percent = 0.05  # 设定买入总资产百分比的股票份额
+xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
 xiadan_target_value = 100000  # 设定具体股票买入持有总金额
 # 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
 order_type = 'order_target_value'
+
+rq_result_filename = "rq_result/" + time.strftime("%Y-%m-%d %H%M%S", time.localtime())
+
+os.mkdir("rq_result") if not os.path.exists("rq_result") else None
+os.remove('temp.csv') if os.path.exists("temp.csv") else None
 
 
 def update_stockcode(stockcode):
@@ -165,8 +170,8 @@ __config__ = {
             "enabled": True,
             "benchmark": "000300.XSHG",
             # "plot": True,
-            'plot_save_file': "rq_result.png",
-            "output_file": "rq_result.pkl",
+            'plot_save_file': rq_result_filename + ".png",
+            "output_file": rq_result_filename + ".pkl",
             # "report_save_path": "rq_result.csv",
         },
         # 策略运行过程中显示的进度条的控制
@@ -196,7 +201,7 @@ end_time = f'程序结束时间：{time.strftime("%Y-%m-%d %H:%M:%S", time.local
 # benchmark_positions 基准仓位
 # trades 交易详情（交割单）
 # plots 调用plot画图时，记录的值
-result_dict = pd.read_pickle("rq_result.pkl")
+result_dict = pd.read_pickle(rq_result_filename + ".pkl")
 
 # 给rq_result.pkl的交割单添加个股盈亏和收益率统计
 df_trades = result_dict['trades']
@@ -205,9 +210,9 @@ df_temp.index.name = 'datetime'  # 重置index的name
 df_temp = pd.merge(df_trades, df_temp, how='right')  # merge，以df_temp为准。相当于更新df_temp
 df_trades = pd.merge(df_trades, df_temp, how='left')  # merge，以df_trades为准。相当于更新df_trades
 result_dict['trades'] = df_trades
-with open("rq_result.pkl", 'wb') as fobj:
+with open(rq_result_filename+".pkl", 'wb') as fobj:
     pickle.dump(result_dict, fobj)
-os.remove('temp.csv')
+os.remove('temp.csv') if os.path.exists("temp.csv") else None
 
 
 rprint(result_dict["summary"])
