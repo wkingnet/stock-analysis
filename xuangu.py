@@ -34,14 +34,14 @@ starttime_tick = time.time()
 # 要进行策略的股票列表筛选
 stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_lday'])]  # 去文件名里的.csv，生成纯股票代码list
 print(f'生成股票列表, 共 {len(stocklist)} 只股票')
-print(f'剔除通达信概念股票: {要剔除的通达信概念}')
+print(f'剔除通达信概念股票 {要剔除的通达信概念}')
 tmplist = []
 df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
 # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
 for i in 要剔除的通达信概念:
     tmplist = tmplist + df.loc[df['blockname'] == i]['code'].tolist()
 stocklist = list(filter(lambda i: i not in tmplist, stocklist))
-print(f'剔除通达信行业股票: {要剔除的通达信行业}')
+print(f'剔除通达信行业股票 {要剔除的通达信行业}')
 tmplist = []
 df = pd.read_csv(ucfg.tdx['tdx_path'] + os.sep + 'T0002' + os.sep + 'hq_cache' + os.sep + "tdxhy.cfg",
                  sep='|', header=None, dtype='object')
@@ -119,7 +119,7 @@ for stockcode in tq:
         del dict[stockcode]
     # process_info = f'{stockcode}'
     # print(f'{process_info} 完成 已用{(time.time() - starttime_tick):.2f}秒')
-print(f'策略1执行完毕，已选出 {len(stocklist):>d} 只股票 用时{(time.time() - starttime_tick):>.2f}秒')
+print(f'策略1执行完毕，已选出 {len(stocklist):>d} 只股票 用时 {(time.time() - starttime_tick):>.2f} 秒')
 # print(stocklist)
 print(f'开始执行策略2')
 # 如果没有df_today
@@ -146,5 +146,5 @@ for stockcode in tq:
 print(f'策略2执行完毕，已选出 {len(stocklist):>d} 只股票 用时 {(time.time() - starttime_tick):>.2f} 秒')
 
 # 结果
-print(f'全部完成 共用时{(time.time() - starttime):>.2f}秒 已选出 {len(已选出股票列表)} 只股票:')
+print(f'全部完成 共用时 {(time.time() - starttime):>.2f} 秒 已选出 {len(已选出股票列表)} 只股票:')
 print(已选出股票列表)
