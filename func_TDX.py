@@ -875,10 +875,10 @@ def update_stockquote(code, df_history, df_today):
         result = result.fillna(method='ffill')  # 向下填充无效值
         if '流通市值' and '换手率' in result.columns.tolist():
             result['流通市值'] = result['流通股'] * result['close']
-            result = result.round({'流通市值': 2,})  # 指定列四舍五入
+            result = result.round({'流通市值': 2, })  # 指定列四舍五入
         if '换手率' and '换手率' in result.columns.tolist():
             result['换手率'] = result['vol'] / result['流通股'] * 100
-            result = result.round({'换手率': 2,})  # 指定列四舍五入
+            result = result.round({'换手率': 2, })  # 指定列四舍五入
 
     else:
         result = df_history
