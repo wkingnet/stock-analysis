@@ -873,6 +873,10 @@ def update_stockquote(code, df_history, df_today):
         df_today = df_today[{'code', 'date', 'open', 'high', 'low', 'close', 'vol', 'amount'}]
         result = pd.concat([df_history, df_today], axis=0, ignore_index=False)
         result = result.fillna(method='ffill')  # 向下填充无效值
+        if '流通市值' and '换手率' in result.columns.tolist():
+            result['流通市值'] = result['流通股'] * result['close']
+            result['换手率'] = result['vol'] / result['流通股'] * 100
+            result = result.round({'流通市值': 2, '换手率': 2, })  # 指定列四舍五入
     else:
         result = df_history
     return result
