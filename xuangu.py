@@ -84,6 +84,9 @@ if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
 HS300_信号 = CeLue.策略HS300(df_hs300)
 if not HS300_信号.iat[-1]:
     print('今日HS300不满足买入条件，仍然选股，但不执行买入操作')
+else:
+    print('今日HS300满足买入条件，不执行买入操作')
+
 # 周一到周五，14点半到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
 df_today_tmppath = ucfg.tdx['csv_gbbq'] + '/df_today.pkl'
 if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00'\
@@ -104,6 +107,7 @@ else:
         os.remove(df_today_tmppath)
     except FileNotFoundError:
         pass
+
 print(f'开始执行策略1(mode=fast)')
 starttime_tick = time.time()
 tq = tqdm(stocklist[:])
@@ -121,6 +125,7 @@ for stockcode in tq:
     # print(f'{process_info} 完成 已用{(time.time() - starttime_tick):.2f}秒')
 print(f'策略1执行完毕，已选出 {len(stocklist):>d} 只股票 用时 {(time.time() - starttime_tick):>.2f} 秒')
 # print(stocklist)
+
 print(f'开始执行策略2')
 # 如果没有df_today
 if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' and 'df_today' not in dir():
