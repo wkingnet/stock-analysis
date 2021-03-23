@@ -150,31 +150,33 @@ def select_best_ip(_type='stock'):
     # 按照ping值从小大大排序
     results = [x[1] for x in sorted(results, key=lambda x: x[0])]
 
-    # 测试服务器在线行情返回股票数
-    stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_lday'])]
-    stocklist_tmp = []
-    for stock in stocklist:  # 构造get_security_quotes所需的元组参数
-        if stock[:1] == '6':
-            stocklist_tmp.append(tuple([1, stock]))
-        elif stock[:1] == '0' or stock[:1] == '3':
-            stocklist_tmp.append(tuple([0, stock]))
-    stocklist = stocklist_tmp
-    api = TdxHq_API()
-    for r_dict in results[:10]:
-        df = pd.DataFrame()
-        if api.connect(r_dict['ip'], r_dict['port']):
-            k = 0
-            for v in stocklist:
-                if k > 0 and k % 80 == 0:
-                    data = api.to_df(api.get_security_quotes(stocklist[k - 80:k]))
-                    df = pd.concat([df, data], axis=0, ignore_index=True)
-                elif k == len(stocklist) - 1:  # 循环到最后，少于10个构成一组
-                    data = api.to_df(api.get_security_quotes(stocklist[k - (k % 80):k + 1]))
-                    df = pd.concat([df, data], axis=0, ignore_index=True)
-                k = k + 1
-        api.disconnect()
-        df.dropna(how='all', inplace=True)
-        print(f"服务器\t{r_dict['ip']}\tget_security_quotes函数每80股票一组，可获取 {len(df)} 股票")
+
+    # # 测试服务器在线行情返回股票数
+    # stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['csv_lday'])]
+    # stocklist_tmp = []
+    # for stock in stocklist:  # 构造get_security_quotes所需的元组参数
+    #     if stock[:1] == '6':
+    #         stocklist_tmp.append(tuple([1, stock]))
+    #     elif stock[:1] == '0' or stock[:1] == '3':
+    #         stocklist_tmp.append(tuple([0, stock]))
+    # stocklist = stocklist_tmp
+    # api = TdxHq_API()
+    # for r_dict in results[:10]:
+    #     df = pd.DataFrame()
+    #     if api.connect(r_dict['ip'], r_dict['port']):
+    #         k = 0
+    #         for v in stocklist:
+    #             if k > 0 and k % 80 == 0:
+    #                 data = api.to_df(api.get_security_quotes(stocklist[k - 80:k]))
+    #                 df = pd.concat([df, data], axis=0, ignore_index=True)
+    #             elif k == len(stocklist) - 1:  # 循环到最后，少于10个构成一组
+    #                 data = api.to_df(api.get_security_quotes(stocklist[k - (k % 80):k + 1]))
+    #                 df = pd.concat([df, data], axis=0, ignore_index=True)
+    #             k = k + 1
+    #     api.disconnect()
+    #     df.dropna(how='all', inplace=True)
+    #     print(f"服务器\t{r_dict['ip']}\tget_security_quotes函数每80股票一组，可获取 {len(df)} 股票")
+
     return results[0]
 
 
