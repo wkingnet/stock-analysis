@@ -85,7 +85,7 @@ HS300_信号 = CeLue.策略HS300(df_hs300)
 if not HS300_信号.iat[-1]:
     print('今日HS300不满足买入条件，仍然选股，但不执行买入操作')
 else:
-    print('今日HS300满足买入条件，不执行买入操作')
+    print('今日HS300满足买入条件，执行买入操作')
 
 # 周一到周五，14点半到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
 df_today_tmppath = ucfg.tdx['csv_gbbq'] + '/df_today.pkl'
