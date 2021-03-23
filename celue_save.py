@@ -45,12 +45,16 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
             df.insert(df.shape[1], 'celue_sell', np.nan)  # 插入celu2列，赋值NaN
         else:
             # 由于make_fq时fillna将最新的空的celue单元格也填充为0，所以先用循环恢复nan
-            for i in range(1, df.shape[0]):
-                if type(df.at[df.index[-i], 'celue_buy']) == float:
-                    df.at[df.index[-i], 'celue_buy'] = np.nan
-                    df.at[df.index[-i], 'celue_sell'] = np.nan
-                else:
-                    break
+            while '0.0' in df['celue_buy'].to_list():
+                for i in range(1, df.shape[0]):
+                    if df.at[df.index[-i], 'celue_buy'] == '0.0':
+                        df.at[df.index[-i], 'celue_buy'] = np.nan
+                        df.at[df.index[-i], 'celue_sell'] = np.nan
+                        break
+            # 由于'0.0'存在，列的类型变成了object，重新转换回bool类型
+            df['celue_buy'] = df['celue_buy'].mask(df['celue_buy'] == 'False', False).astype(bool)
+            df['celue_sell'] = df['celue_sell'].mask(df['celue_sell'] == 'False', False).astype(bool)
+
         if True in df['celue_buy'].isna().to_list():
             start_date = df.index[np.where(df['celue_buy'].isna())[0][0]]
             end_date = df.index[-1]
