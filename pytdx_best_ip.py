@@ -182,6 +182,6 @@ def select_best_ip(_type='stock'):
 
 if __name__ == '__main__':
     ip = select_best_ip('stock')
-    print(ip)
+    print(f'\n最佳通达信服务器IP和端口：\n{ip}')
     # ip = select_best_ip('future')
     # print(ip)
