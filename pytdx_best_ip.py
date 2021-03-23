@@ -9,8 +9,6 @@ import pandas as pd
 from pytdx.hq import TdxHq_API
 from pytdx.exhq import TdxExHq_API
 from rich import print
-
-sys.path.append("..")
 import user_config as ucfg
 
 stock_ip = [
