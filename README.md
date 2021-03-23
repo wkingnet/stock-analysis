@@ -121,7 +121,8 @@
 
 想给日线计算添加自己的数据，在func_TDX.py的make_fq函数，加到下面语句前。
 
-`if len(start_date) == 0 and len(end_date) == 0:`
+`if flag_attach:  # 追加模式，则附加最新处理的数据
+    data = df_code_original.append(data)`
 
 财报文件所有字段释义，查看“util_docs\专业财务文件字段含义对照表.txt”
 
