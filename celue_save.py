@@ -15,10 +15,17 @@ import CeLue  # 个人策略文件，不分享
 import func_TDX
 import user_config as ucfg
 
-
 # 变量定义
 要剔除的通达信概念 = ["ST板块", ]  # list类型。通达信软件中查看“概念板块”。
 要剔除的通达信行业 = ["T1002", ]  # list类型。记事本打开 通达信目录\incon.dat，查看#TDXNHY标签的行业代码。
+
+
+def lambda_update0(x):
+    if type(x) == float:
+        x = np.nan
+    elif x == '0.0':
+        x = np.nan
+    return x
 
 
 def celue_save(file_list, HS300_信号, tqdm_position=None):
@@ -41,19 +48,21 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
                 del df['celue_sell']
         df.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
         if not {'celue_buy', 'celue_buy'}.issubset(df.columns):
-            df.insert(df.shape[1], 'celue_buy', np.nan)  # 插入celu2列，赋值NaN
-            df.insert(df.shape[1], 'celue_sell', np.nan)  # 插入celu2列，赋值NaN
+            df.insert(df.shape[1], 'celue_buy', np.nan)  # 插入celue_buy列，赋值NaN
+            df.insert(df.shape[1], 'celue_sell', np.nan)  # 插入celue_sell列，赋值NaN
         else:
-            # 由于make_fq时fillna将最新的空的celue单元格也填充为0，所以先用循环恢复nan
-            while '0.0' in df['celue_buy'].to_list():
-                for i in range(1, df.shape[0]):
-                    if df.at[df.index[-i], 'celue_buy'] == '0.0':
-                        df.at[df.index[-i], 'celue_buy'] = np.nan
-                        df.at[df.index[-i], 'celue_sell'] = np.nan
-                        break
-            # 由于'0.0'存在，列的类型变成了object，重新转换回bool类型
-            df['celue_buy'] = df['celue_buy'].mask(df['celue_buy'] == 'False', False).astype(bool)
-            df['celue_sell'] = df['celue_sell'].mask(df['celue_sell'] == 'False', False).astype(bool)
+            # 由于make_fq时fillna将最新的空的celue单元格也填充为0，所以先恢复nan
+            df['celue_buy'] = (df['celue_buy']
+                               .apply(lambda x: lambda_update0(x))
+                               .mask(df['celue_buy'] == 'False', False)
+                               .mask(df['celue_buy'] == 'True', True)
+                               )
+
+            df['celue_sell'] = (df['celue_sell']
+                                .apply(lambda x: lambda_update0(x))
+                                .mask(df['celue_sell'] == 'False', False)
+                                .mask(df['celue_sell'] == 'True', True)
+                                )
 
         if True in df['celue_buy'].isna().to_list():
             start_date = df.index[np.where(df['celue_buy'].isna())[0][0]]
@@ -84,29 +93,6 @@ if __name__ == '__main__':
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     HS300_信号 = CeLue.策略HS300(df_hs300)
     stocklist = [i[:-4] for i in os.listdir(ucfg.tdx['pickle'])]
-    print(f'生成股票列表, 共 {len(stocklist)} 只股票')
-    print(f'剔除通达信概念股票: {要剔除的通达信概念}')
-    tmplist = []
-    df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
-    # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
-    for i in 要剔除的通达信概念:
-        tmplist = tmplist + df.loc[df['blockname'] == i]['code'].tolist()
-    stocklist = list(filter(lambda i: i not in tmplist, stocklist))
-    print(f'剔除通达信行业股票: {要剔除的通达信行业}')
-    tmplist = []
-    df = pd.read_csv(ucfg.tdx['tdx_path'] + os.sep + 'T0002' + os.sep + 'hq_cache' + os.sep + "tdxhy.cfg",
-                     sep='|', header=None, dtype='object')
-    for i in 要剔除的通达信行业:
-        tmplist = tmplist + df.loc[df[2] == i][1].tolist()
-    stocklist = list(filter(lambda i: i not in tmplist, stocklist))
-    print("剔除科创板股票")
-    tmplist = []
-    for stockcode in stocklist:
-        if stockcode[:2] != '68':
-            tmplist.append(stockcode)
-    stocklist = tmplist
-    股票总数 = len(stocklist)
-    print(f'共 {股票总数} 只候选股票')
 
     if 'del' in sys.argv[1:]:
         print(f'检测到参数 del, 完全重新生成策略信号')
@@ -166,6 +152,32 @@ if __name__ == '__main__':
         # 读取pool的返回对象列表。i.get()是读取方法。拼接每个子进程返回的df
         for i in pool_result:
             df_celue = df_celue.append(i.get())
+
+    # df_celue 是处理后的所有股票策略信号汇总文件。
+    # 下面处理自定义股票板块剔除
+
+    # 生成要剔除的股票列表 kicklist
+    print(f'生成股票列表, 共 {len(stocklist)} 只股票')
+    print(f'剔除通达信概念股票: {要剔除的通达信概念}')
+    kicklist = []
+    df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
+    # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
+    for i in 要剔除的通达信概念:
+        kicklist = kicklist + df.loc[df['blockname'] == i]['code'].tolist()
+    print(f'剔除通达信行业股票: {要剔除的通达信行业}')
+    df = pd.read_csv(ucfg.tdx['tdx_path'] + os.sep + 'T0002' + os.sep + 'hq_cache' + os.sep + "tdxhy.cfg",
+                     sep='|', header=None, dtype='object')
+    for i in 要剔除的通达信行业:
+        kicklist = kicklist + df.loc[df[2] == i][1].tolist()
+    print("剔除科创板股票")
+    tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.code',
+                             sep='|', header=None, index_col=None, encoding='gbk', dtype={0: str})
+    kicklist = kicklist + tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:2] == "68")].to_list()
+    print(f'共 {len(stocklist)-len(kicklist)} 只候选股票')
+
+    # df_celue 剔除在kicklist中的股票
+    df_celue = df_celue[~df_celue['code'].isin(kicklist)]
+
     df_celue = (df_celue
                 .drop(["open", "high", "low", "vol", "amount", "adj", "流通股", "流通市值", "换手率"], axis=1)
                 .sort_index()
