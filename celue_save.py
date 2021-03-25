@@ -173,7 +173,8 @@ if __name__ == '__main__':
     tdx_stocks = pd.read_csv(ucfg.tdx['tdx_path'] + '/T0002/hq_cache/infoharbor_ex.code',
                              sep='|', header=None, index_col=None, encoding='gbk', dtype={0: str})
     kicklist = kicklist + tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:2] == "68")].to_list()
-    print(f'共 {len(stocklist)-len(kicklist)} 只候选股票')
+    stocklist = list(filter(lambda i: i not in kicklist, stocklist))
+    print(f'共 {len(stocklist)} 只候选股票')
 
     # df_celue 剔除在kicklist中的股票
     df_celue = df_celue[~df_celue['code'].isin(kicklist)]

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from rich import print as rprint
 
 # 回测变量定义
-start_date = "2016-01-01"  # 回测起始日期
+start_date = "2021-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
 xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
 xiadan_target_value = 100000  # 设定具体股票买入持有总金额
