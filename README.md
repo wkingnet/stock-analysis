@@ -59,6 +59,11 @@
 盘中选股截图
 
 
+![回测系统截图](https://images.gitee.com/uploads/images/2021/0325/135142_b02cfc7f_5346376.png "QQ截图20210325135112.png")
+
+回测系统截图
+
+
 ![显示策略持仓区域](https://images.gitee.com/uploads/images/2021/0305/220211_5b2f75b3_5346376.png "QQ截图20210305215647.png")
 
 高亮显示策略历史持仓区域，红赚绿亏
