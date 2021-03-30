@@ -124,6 +124,7 @@ if __name__ == '__main__':
     stocklist = make_stocklist()
     print(f'共 {len(stocklist)} 只候选股票')
 
+    # 由于多进程时df_dict字典占用超多内存资源，导致多进程效率还不如单进程。因此多进程模式改用函数内部读单独股票pkl文件的办法
     # print("开始载入日线文件到内存")
     # df_dict = load_dict_stock(stocklist)
 
@@ -140,19 +141,22 @@ if __name__ == '__main__':
         df_hs300 = func_TDX.update_stockquote('000300', df_hs300, df_today)
         del df_today
     HS300_信号 = CeLue.策略HS300(df_hs300)
-    if not HS300_信号.iat[-1]:
-        print('今日HS300不满足买入条件，仍然选股，但不执行买入操作')
+    if HS300_信号.iat[-1]:
+        print('[red]今日HS300满足买入条件，执行买入操作[/red]')
     else:
-        print('今日HS300满足买入条件，执行买入操作')
+        print('[green]今日HS300不满足买入条件，仍然选股，但不执行买入操作[/green]')
+        HS300_信号.loc[:] = True  # 强制全部设置为True出选股结果
 
-    # 周一到周五，14点半到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
+
+    # 周一到周五，9点到16点之间，获取在线行情。其他时间不是交易日，默认为离线数据已更新到最新
     df_today_tmppath = ucfg.tdx['csv_gbbq'] + '/df_today.pkl'
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' \
             and 0 <= time.localtime(time.time()).tm_wday <= 4:
         # 获取当前最新行情，临时保存到本地，防止多次调用被服务器封IP。
+        print(f'现在是交易时段，需要获取股票实时行情')
         if os.path.exists(df_today_tmppath):
             if round(time.time() - os.path.getmtime(df_today_tmppath)) < 600:  # 据创建时间小于10分钟读取本地文件
-                print(f'读取本地临时最新行情文件')
+                print(f'检测到本地临时最新行情文件，读取并合并股票数据')
                 df_today = pd.read_pickle(df_today_tmppath)
             else:
                 df_today = func_TDX.get_tdx_lastestquote(stocklist)
@@ -172,7 +176,6 @@ if __name__ == '__main__':
     if 'single' in sys.argv[1:]:
         stocklist = run_celue1(stocklist, df_today)
     else:
-        # 由于df_dict字典占用超多内存资源，导致多进程效率还不如单进程
         t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
         freeze_support()  # for Windows support
         tqdm.set_lock(RLock())  # for managing output contention

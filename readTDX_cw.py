@@ -28,7 +28,7 @@ import user_config as ucfg
 # 变量定义
 tdxpath = ucfg.tdx['tdx_path']
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
-starttime_tick = time.time()
+starttime = time.time()
 
 
 # 主程序开始
@@ -45,6 +45,7 @@ tdx_txt_df = pd.DataFrame(tdx_txt_df, columns=['filename', 'md5', 'filesize'])  
 local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 many_thread_download = func_TDX.ManyThreadDownload()
 for df_filename in tdx_txt_df['filename'].tolist():
+    starttime_tick = time.time()
     if df_filename not in local_zipfile_list:
         print(f'{df_filename} 本机没有 开始下载')
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + df_filename
@@ -56,11 +57,12 @@ for df_filename in tdx_txt_df['filename'].tolist():
         df = func_TDX.historyfinancialreader(local_datfile_path)
         csvpath = ucfg.tdx['csv_cw'] + os.sep + df_filename[:-4] + ".pkl"
         df.to_pickle(csvpath, compression=None)
-        print(f'{df_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
+        print(f'{df_filename} 完成更新 用时 {(time.time() - starttime_tick):>5.2f} 秒')
 
 # 检查本机通达信zip文件是否需要更新
 local_zipfile_list = func_TDX.list_localTDX_cwfile('zip')  # 获取本机已有文件
 for zipfile_filename in local_zipfile_list:
+    starttime_tick = time.time()
     local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + zipfile_filename
     with open(local_zipfile_path, 'rb') as fobj:  # 读取本机zip文件，计算md5
         file_content = fobj.read()
@@ -76,12 +78,13 @@ for zipfile_filename in local_zipfile_list:
         df = func_TDX.historyfinancialreader(local_datfile_path)
         csvpath = ucfg.tdx['csv_cw'] + os.sep + zipfile_filename[:-4] + ".pkl"
         df.to_pickle(csvpath, compression=None)
-        print(f'{zipfile_filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
+        print(f'{zipfile_filename} 完成更新 用时 {(time.time() - starttime_tick):>5.2f} 秒')
 
 # 检查本机财报导出文件是否存在
 cwfile_list = os.listdir(ucfg.tdx['csv_cw'])  # cw目录 生成文件名列表
 local_datfile_list = func_TDX.list_localTDX_cwfile('dat')  # 获取本机已有文件
 for filename in local_datfile_list:
+    starttime_tick = time.time()
     filenamepkl = filename[:-4] + '.pkl'
     pklpath = ucfg.tdx['csv_cw'] + os.sep + filenamepkl
     filenamedat = filename[:-4] + '.dat'
@@ -90,11 +93,12 @@ for filename in local_datfile_list:
         print(f'{filename} 本机没有 需要导出')
         df = func_TDX.historyfinancialreader(datpath)
         df.to_pickle(pklpath, compression=None)
-        print(f'{filename} 完成更新 已用{(time.time() - starttime_tick):>5.2f}秒')
+        print(f'{filename} 完成更新 用时 {(time.time() - starttime_tick):>5.2f} 秒')
 
-print(f'专业财务文件检查更新完成')
+print(f'专业财务文件检查更新完成 已用 {(time.time() - starttime):>5.2f} 秒')
 
 # 解密通达信股本变迁文件
+starttime_tick = time.time()
 category = {
     '1': '除权除息', '2': '送配股上市', '3': '非流通股上市', '4': '未知股本变动', '5': '股本变化',
     '6': '增发新股', '7': '股份回购', '8': '增发新股上市', '9': '转配股上市', '10': '可转债上市',
@@ -112,4 +116,5 @@ for i in range(df_gbbq.shape[0]):
 df_gbbq.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'gbbq.csv', encoding='gbk', index=False)
 # 如果读取，使用下行命令
 # df_gbbq = pd.read_csv(ucfg.tdx['csv_cw'] + '/gbbq.csv', encoding='gbk', dtype={'code': 'object'})
-print(f'股本变迁解密完成 已用{(time.time() - starttime_tick):>5.2f}秒')
+print(f'股本变迁解密完成 用时 {(time.time() - starttime_tick):>5.2f} 秒')
+print(f'全部完成 用时 {(time.time() - starttime):>5.2f} 秒 程序结束')
