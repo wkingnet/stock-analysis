@@ -147,6 +147,13 @@ def BARSLAST(series):
     return result
 
 
+def VALUEWHEN(cond, value_series):
+    result = pd.Series(index=cond.index, dtype=float)
+    result.loc[cond.loc[cond==True].keys()] = value_series.loc[cond.loc[cond==True].keys()]
+    result = result.fillna(method='ffill')  # 向下填充无效值
+    return result
+
+
 # debug输出函数
 def user_debug(print_str, print_value='', ):
     """第一个参数为变量名称，第二个参数为变量的值"""
