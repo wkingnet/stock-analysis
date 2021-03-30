@@ -20,15 +20,14 @@ import user_config as ucfg
 要剔除的通达信行业 = ["T1002", ]  # list类型。记事本打开 通达信目录\incon.dat，查看#TDXNHY标签的行业代码。
 
 
-def lambda_update0(x):
-    if type(x) == float:
-        x = np.nan
-    elif x == '0.0':
-        x = np.nan
-    return x
-
-
 def celue_save(file_list, HS300_信号, tqdm_position=None):
+    def lambda_update0(x):
+        if type(x) == float:
+            x = np.nan
+        elif x == '0.0':
+            x = np.nan
+        return x
+
     # print('\nRun task (%s)' % os.getpid())
     starttime_tick = time.time()
     df_celue = pd.DataFrame()
@@ -175,10 +174,10 @@ if __name__ == '__main__':
     kicklist = kicklist + tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:2] == "68")].to_list()
     stocklist = list(filter(lambda i: i not in kicklist, stocklist))
     print(f'共 {len(stocklist)} 只候选股票')
-
     # df_celue 剔除在kicklist中的股票
     df_celue = df_celue[~df_celue['code'].isin(kicklist)]
 
+    print(f'保存独立"celue汇总.csv"文件')
     df_celue = (df_celue
                 .drop(["open", "high", "low", "vol", "amount", "adj", "流通股", "流通市值", "换手率"], axis=1)
                 .sort_index()
