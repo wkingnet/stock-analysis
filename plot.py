@@ -9,7 +9,7 @@ from multiprocessing import Pool, RLock, freeze_support
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from rich import print as rprint
+from rich import print
 
 import CeLue  # 个人策略文件，不分享
 import func_TDX
@@ -20,7 +20,16 @@ from pyecharts import options as opts
 from pyecharts.commons.utils import JsCode
 
 if __name__ == '__main__':
-    stock_code = '600362'
+    try:
+        if len(sys.argv[1:][0]) == 6:
+            stock_code = sys.argv[1:][0]
+        else:
+            raise ValueError("参数非股票代码，需正确输入参数 格式: python celue.py 000001")
+    except IndexError as error:
+        stock_code = "000001"
+        print("没有获取到参数，需手动附加参数 格式: python celue.py 000001")
+        print(f"使用代码内置的股票代码 {stock_code}")
+
     df_stock = pd.read_pickle(ucfg.tdx["pickle"] + os.sep + stock_code + ".pkl")
     # df_stock['date'] = pd.to_datetime(df_stock['date'], format='%Y-%m-%d')  # 转为时间格式
     # df_stock.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
@@ -107,3 +116,4 @@ if __name__ == '__main__':
         ),
     )
     grid_chart.render('pyecharts.html')
+    print(f'{stock_code} 绘图完成，程序结束')

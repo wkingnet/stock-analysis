@@ -12,15 +12,15 @@ from tqdm import tqdm
 from rich import print as rprint
 
 # 回测变量定义
-start_date = "2016-01-01"  # 回测起始日期
+start_date = "2014-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
 xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
-xiadan_target_value = 1000000  # 设定具体股票买入持有总金额
+xiadan_target_value = 100000  # 设定具体股票买入持有总金额
 # 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
 order_type = 'order_percent'
 
 rq_result_filename = "rq_result/" + time.strftime("%Y-%m-%d_%H%M%S", time.localtime()) + "+" + "start_date" + str(start_date)
-rq_result_filename += "+" + order_type + "_" + str(xiadan_percent) if order_type == 'order_percent' else str(xiadan_target_value)
+rq_result_filename += "+" + order_type + "_" + (str(xiadan_percent) if order_type == 'order_percent' else str(xiadan_target_value))
 
 os.mkdir("rq_result") if not os.path.exists("rq_result") else None
 os.remove('temp.csv') if os.path.exists("temp.csv") else None
@@ -76,8 +76,8 @@ def handle_bar(context, bar_dict):
 
                 # order_result_obj.unfilled_quantity>0表示有未成交的委托股数，进行补单操作
                 if order_result_obj.unfilled_quantity == 0:
-                    # 委托单成交
-                    logger.info(f"SELL {row['code']}, 盈亏{round(get_position(row['code']).position_pnl, 2)}")
+                    # 委托单成交，计算收益率
+                    # logger.info(f"SELL {row['code']}, 盈亏{round(get_position(row['code']).position_pnl, 2)}")
 
                     buy_price = context.df_celue.loc[(context.df_celue['code'] == row['code'])
                                                      & (context.df_celue['celue_buy'] == True)
@@ -112,16 +112,31 @@ def handle_bar(context, bar_dict):
                     # 买入/卖出证券以自动调整该证券的仓位到占有一个目标价值。
                     # 加仓时，percent 代表证券已有持仓的价值加上即将花费的现金（包含税费）的总值占当前投资组合总价值的比例。
                     # 减仓时，percent 代表证券将被调整到的目标价至占当前投资组合总价值的比例。
-                    order_percent(row['code'], context.percent)
-                    logger.info(f"BUY {row['code']}")
+                    order_result_obj = order_percent(row['code'], context.percent)
+                    # logger.info(f"BUY {row['code']}")
 
                 elif context.order_type == 'order_target_value':
                     # 买入 / 卖出并且自动调整该证券的仓位到一个目标价值。
                     # 加仓时，cash_amount代表现有持仓的价值加上即将花费（包含税费）的现金的总价值。
                     # 减仓时，cash_amount代表调整仓位的目标价至。
                     # 需要注意，如果资金不足，该API将不会创建发送订单。
-                    order_target_value(row['code'], context.target_value)
-                    logger.info(f"BUY {row['code']}")
+                    order_result_obj = order_target_value(row['code'], context.target_value)
+                    # logger.info(f"BUY {row['code']}")
+
+                # 委托单成交状态判断处理
+                # 订单被拒单：下单量为0 的情况。由于没有可用资金导致的，返回的order_result_obj是None类型，和其他情况不一样
+                if order_result_obj is None:
+                    string = f'净值{context.portfolio.total_value:>.2f} '
+                    string += f'可用{context.portfolio.cash:>.2f} '
+                    string += f'市值{context.portfolio.market_value:>.2f} '
+                    # string += f'收益{context.portfolio.total_returns:>.2%} '
+                    string += f'持股{len(context.portfolio.positions):>d} '
+                    logger.info(string)
+                # order_result_obj.unfilled_quantity>0表示有未成交的委托股数，进行补单操作
+                elif order_result_obj.unfilled_quantity > 0:
+                    pass
+                else:  # 订单成功完成
+                    pass
 
 
 # after_trading函数会在每天交易结束后被调用，当天只会被调用一次
@@ -131,7 +146,7 @@ def after_trading(context):
     string += f'市值{context.portfolio.market_value:>.2f} '
     # string += f'收益{context.portfolio.total_returns:>.2%} '
     string += f'持股{len(context.portfolio.positions):>d} '
-    logger.info(string)
+    # logger.info(string)
 
     if len(context.stock_pnl) > 0:
         if os.path.exists('temp.csv'):
@@ -146,7 +161,7 @@ __config__ = {
         "start_date": start_date,
         # 数据源所存储的文件路径
         "data_bundle_path": "C:/Users/king/.rqalpha/bundle/",
-        "strategy_file": "huice_rq.py",
+        "strategy_file": "huice.py",
         # 目前支持 `1d` (日线回测) 和 `1m` (分钟线回测)，如果要进行分钟线，请注意是否拥有对应的数据源，目前开源版本是不提供对应的数据源的。
         "frequency": "1d",
         # 启用的回测引擎，目前支持 current_bar (当前Bar收盘价撮合) 和 next_bar (下一个Bar开盘价撮合)
