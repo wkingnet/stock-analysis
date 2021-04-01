@@ -77,6 +77,7 @@ def HHV(series, day):
         value = value.fillna(method='ffill')  # 向下填充无效值
     else:
         value = series.rolling(day).max()
+        value.iloc[0:day-1] = HHV(series.iloc[0:day-1], 0)
     return value
 
 
@@ -96,6 +97,7 @@ def LLV(series, day):
         value = value.fillna(method='ffill')  # 向下填充无效值
     else:
         value = series.rolling(day).min()
+        value.iloc[0:day - 1] = LLV(series.iloc[0:day - 1], 0)
     return value
 
 
