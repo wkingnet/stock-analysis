@@ -87,6 +87,7 @@ def celue_save(file_list, HS300_信号, tqdm_position=None):
 
 if __name__ == '__main__':
     print(f'附带命令行参数 del 完全重新生成策略信号, 参数 single 单进程执行(默认多进程)')
+    starttime = time.time()
     df_hs300 = pd.read_csv(ucfg.tdx['csv_index'] + '/000300.csv', index_col=None, encoding='gbk', dtype={'code': str})
     df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
@@ -184,5 +185,4 @@ if __name__ == '__main__':
                 .reset_index(drop=True)
                 )
     df_celue.to_csv(ucfg.tdx['csv_gbbq'] + os.sep + 'celue汇总.csv', index=True, encoding='gbk')
-
-    print(f'全部处理完成，程序退出')
+    print(f'用时 {(time.time() - starttime):.2f} 秒, 全部处理完成，程序退出')

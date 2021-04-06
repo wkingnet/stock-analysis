@@ -5,6 +5,7 @@ import pickle
 import talib
 import pandas as pd
 import numpy as np
+
 import user_config as ucfg
 from rqalpha.apis import *
 from rqalpha import run_func
@@ -12,12 +13,12 @@ from tqdm import tqdm
 from rich import print as rprint
 
 # 回测变量定义
-start_date = "2014-01-01"  # 回测起始日期
+start_date = "2016-01-01"  # 回测起始日期
 stock_money = 10000000  # 股票账户初始资金
 xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
 xiadan_target_value = 100000  # 设定具体股票买入持有总金额
 # 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
-order_type = 'order_percent'
+order_type = 'order_target_value'
 
 rq_result_filename = "rq_result/" + time.strftime("%Y-%m-%d_%H%M%S", time.localtime()) + "+" + "start_date" + str(start_date)
 rq_result_filename += "+" + order_type + "_" + (str(xiadan_percent) if order_type == 'order_percent' else str(xiadan_target_value))
@@ -66,6 +67,16 @@ def handle_bar(context, bar_dict):
         for index, row in context.df_today.iterrows():
             # logger.info(index, row)
 
+            # 检测是否停牌，停牌则交易单复制到下一个交易日
+            if is_suspended(row['code']):
+                # print(f"{row['code']} 停牌 跳过")
+                row_new = copy.copy(row)
+                # 获取下一个交易日日期，并赋值。新DF行附加到context.df_celue
+                row_new['date'] = get_next_trading_date(context.now.strftime('%Y-%m-%d'), 1)
+                row_new = pd.DataFrame(row_new).T.set_index('date', drop=False)
+                context.df_celue = context.df_celue.append(row_new)
+                continue
+
             # 获取当前投资组合中具体股票的数据
             cur_quantity = get_position(row['code']).quantity  # 该股持仓量
             cur_pnl = get_position(row['code']).pnl  # 该股持仓的累积盈亏
@@ -93,7 +104,7 @@ def handle_bar(context, bar_dict):
                     context.stock_pnl = context.stock_pnl.append(series, ignore_index=True)
                 else:
                     # 委托单未成交
-                    logger.info(f"{row['code']} {get_next_trading_date(context.now.strftime('%Y-%m-%d'))} 进行补单操作")
+                    logger.info(f"{row['code']} {get_next_trading_date(context.now.strftime('%Y-%m-%d'))} 补单")
                     row_new = copy.copy(row)
                     # 获取下一个交易日日期，并赋值。新DF行附加到context.df_celue
                     row_new['date'] = get_next_trading_date(context.now.strftime('%Y-%m-%d'), 1)
@@ -134,8 +145,14 @@ def handle_bar(context, bar_dict):
                     logger.info(string)
                 # order_result_obj.unfilled_quantity>0表示有未成交的委托股数，进行补单操作
                 elif order_result_obj.unfilled_quantity > 0:
-                    pass
-                else:  # 订单成功完成
+                    logger.info(f"{row['code']} {get_next_trading_date(context.now.strftime('%Y-%m-%d'))} 补单")
+                    row_new = copy.copy(row)
+                    # 获取下一个交易日日期，并赋值。新DF行附加到context.df_celue
+                    row_new['date'] = get_next_trading_date(context.now.strftime('%Y-%m-%d'), 1)
+                    row_new = pd.DataFrame(row_new).T.set_index('date', drop=False)
+                    context.df_celue = context.df_celue.append(row_new)
+                # 订单成功完成
+                else:
                     pass
 
 
