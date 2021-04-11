@@ -12,7 +12,7 @@ from tqdm import tqdm
 from rich import print
 
 import CeLue  # 个人策略文件，不分享
-import func_TDX
+import func
 import user_config as ucfg
 
 # 变量定义
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     print(f'生成股票列表, 共 {len(stocklist)} 只股票')
     print(f'剔除通达信概念股票: {要剔除的通达信概念}')
     kicklist = []
-    df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
+    df = func.get_TDX_blockfilecontent("block_gn.dat")
     # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
     for i in 要剔除的通达信概念:
         kicklist = kicklist + df.loc[df['blockname'] == i]['code'].tolist()

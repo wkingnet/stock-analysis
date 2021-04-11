@@ -19,7 +19,7 @@ import pandas as pd
 import argparse
 from tqdm import tqdm
 from multiprocessing import Pool, RLock, freeze_support
-import func_TDX
+import func
 import user_config as ucfg
 
 
@@ -73,7 +73,7 @@ def update_lday():
         f = 'sz' + f + '.day'
         if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday/' + f):  # 处理深市sh00开头和创业板sh30文件，否则跳过此次循环
             # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
+            func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 
     print("处理沪市股票")
     # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
@@ -82,15 +82,15 @@ def update_lday():
         f = 'sh' + f + '.day'
         if os.path.exists(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday/' + f):
             # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
+            func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 
     print("处理指数文件")
     for i in tqdm(ucfg.index_list):
         # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
         if 'sh' in i:
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', i, ucfg.tdx['csv_index'])
+            func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', i, ucfg.tdx['csv_index'])
         elif 'sz' in i:
-            func_TDX.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', i, ucfg.tdx['csv_index'])
+            func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', i, ucfg.tdx['csv_index'])
 
 
 def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
@@ -99,7 +99,7 @@ def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
         # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
         df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk',
                              dtype={'code': str})
-        df_qfq = func_TDX.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
+        df_qfq = func.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
         # lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))
         if len(df_qfq) > 0:  # 返回值大于0，表示有更新
             df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     file_list = os.listdir(ucfg.tdx['csv_lday'])
     starttime_tick = time.time()
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
-    cw_dict = func_TDX.readall_local_cwfile()
+    cw_dict = func.readall_local_cwfile()
 
     # 多进程
     # print('Parent process %s' % os.getpid())

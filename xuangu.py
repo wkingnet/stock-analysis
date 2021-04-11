@@ -10,7 +10,7 @@ from multiprocessing import Pool, RLock, freeze_support
 from rich import print
 from tqdm import tqdm
 import CeLue  # 个人策略文件，不分享
-import func_TDX
+import func
 import user_config as ucfg
 
 # 配置部分
@@ -35,7 +35,7 @@ def make_stocklist():
     print(f'生成股票列表, 共 {len(stocklist)} 只股票')
     print(f'剔除通达信概念股票: {要剔除的通达信概念}')
     tmplist = []
-    df = func_TDX.get_TDX_blockfilecontent("block_gn.dat")
+    df = func.get_TDX_blockfilecontent("block_gn.dat")
     # 获取df中blockname列的值是ST板块的行，对应code列的值，转换为list。用filter函数与stocklist过滤，得出不包括ST股票的对象，最后转为list
     for i in 要剔除的通达信概念:
         tmplist = tmplist + df.loc[df['blockname'] == i]['code'].tolist()
@@ -79,7 +79,7 @@ def run_celue1(stocklist, df_today, tqdm_position=None):
         pklfile = csvdaypath + os.sep + stockcode + '.pkl'
         df_stock = pd.read_pickle(pklfile)
         if df_today is not None:  # 更新当前最新行情，否则用昨天的数据
-            df_stock = func_TDX.update_stockquote(stockcode, df_stock, df_today)
+            df_stock = func.update_stockquote(stockcode, df_stock, df_today)
         df_stock['date'] = pd.to_datetime(df_stock['date'], format='%Y-%m-%d')  # 转为时间格式
         df_stock.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
         celue1 = CeLue.策略1(df_stock, start_date=start_date, end_date=end_date, mode='fast')
@@ -102,12 +102,12 @@ def run_celue2(stocklist, HS300_信号, df_gbbq, df_today, tqdm_position=None):
         if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' \
                 and 0 <= time.localtime(time.time()).tm_wday <= 4:
             df_today_code = df_today.loc[df_today['code'] == stockcode]
-            df_stock = func_TDX.update_stockquote(stockcode, df_stock, df_today_code)
+            df_stock = func.update_stockquote(stockcode, df_stock, df_today_code)
             # 判断今天是否在该股的权息日内。如果是，需要重新前复权
             now_date = pd.to_datetime(time.strftime("%Y-%m-%d", time.localtime()))
             if now_date in df_gbbq.loc[df_gbbq['code'] == stockcode]['权息日'].to_list():
-                cw_dict = func_TDX.readall_local_cwfile()
-                df_stock = func_TDX.make_fq(stockcode, df_stock, df_gbbq, cw_dict)
+                cw_dict = func.readall_local_cwfile()
+                df_stock = func.make_fq(stockcode, df_stock, df_gbbq, cw_dict)
         celue2 = CeLue.策略2(df_stock, HS300_信号, start_date=start_date, end_date=end_date).iat[-1]
         if not celue2:
             stocklist.remove(stockcode)
@@ -137,8 +137,8 @@ if __name__ == '__main__':
     df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
-        df_today = func_TDX.get_tdx_lastestquote((1, '000300'))
-        df_hs300 = func_TDX.update_stockquote('000300', df_hs300, df_today)
+        df_today = func.get_tdx_lastestquote((1, '000300'))
+        df_hs300 = func.update_stockquote('000300', df_hs300, df_today)
         del df_today
     HS300_信号 = CeLue.策略HS300(df_hs300)
     if HS300_信号.iat[-1]:
@@ -159,10 +159,10 @@ if __name__ == '__main__':
                 print(f'检测到本地临时最新行情文件，读取并合并股票数据')
                 df_today = pd.read_pickle(df_today_tmppath)
             else:
-                df_today = func_TDX.get_tdx_lastestquote(stocklist)
+                df_today = func.get_tdx_lastestquote(stocklist)
                 df_today.to_pickle(df_today_tmppath, compression=None)
         else:
-            df_today = func_TDX.get_tdx_lastestquote(stocklist)
+            df_today = func.get_tdx_lastestquote(stocklist)
             df_today.to_pickle(df_today_tmppath, compression=None)
     else:
         try:
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     print(f'开始执行策略2')
     # 如果没有df_today
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00' and 'df_today' not in dir():
-        df_today = func_TDX.get_tdx_lastestquote(stocklist)  # 获取当前最新行情
+        df_today = func.get_tdx_lastestquote(stocklist)  # 获取当前最新行情
 
     starttime_tick = time.time()
     if 'single' in sys.argv[1:]:
