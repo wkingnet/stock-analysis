@@ -17,7 +17,7 @@ import user_config as ucfg
 
 # 变量定义
 要剔除的通达信概念 = ["ST板块", ]  # list类型。通达信软件中查看“概念板块”。
-要剔除的通达信行业 = ["T1002", ]  # list类型。记事本打开 通达信目录\incon.dat，查看#TDXNHY标签的行业代码。
+要剔除的通达信行业 = ["T1002", ]  # list类型。记事本打开 通达信目录\incon.dat，查看#TDXNHY标签的行业代码。T1002=证券
 
 
 def celue_save(file_list, HS300_信号, tqdm_position=None):
