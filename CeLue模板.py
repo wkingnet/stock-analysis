@@ -12,8 +12,8 @@ HHV/LLV/COUNT使用了rolling函数，性能极差，慎用。
 import numpy as np
 import talib
 import time
-from func_TDX import rolling_window, REF, MA, SMA, HHV, LLV, COUNT, EXIST, CROSS, BARSLAST, \
-    update_stockquote, get_tdx_lastestquote
+import func
+from func_TDX import rolling_window, REF, MA, SMA, HHV, LLV, COUNT, EXIST, CROSS, BARSLAST
 from rich import print
 
 
@@ -286,16 +286,16 @@ if __name__ == '__main__':
     df_hs300['date'] = pd.to_datetime(df_hs300['date'], format='%Y-%m-%d')  # 转为时间格式
     df_hs300.set_index('date', drop=False, inplace=True)  # 时间为索引。方便与另外复权的DF表对齐合并
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
-        df_today = get_tdx_lastestquote((1, '000300'))
-        df_hs300 = update_stockquote('000300', df_hs300, df_today)
+        df_today = func.get_tdx_lastestquote((1, '000300'))
+        df_hs300 = func.update_stockquote('000300', df_hs300, df_today)
     HS300_信号 = 策略HS300(df_hs300)
 
     if not HS300_信号.iat[-1]:
         print('今日HS300不满足买入条件，停止选股')
 
     if '09:00:00' < time.strftime("%H:%M:%S", time.localtime()) < '16:00:00':
-        df_today = get_tdx_lastestquote(stock_code)
-        df_stock = update_stockquote(stock_code, df_stock, df_today)
+        df_today = func.get_tdx_lastestquote(stock_code)
+        df_stock = func.update_stockquote(stock_code, df_stock, df_today)
     celue1_fast = 策略1(df_stock, mode='fast', start_date=start_date, end_date=end_date)
     celue1 = 策略1(df_stock, mode='', start_date=start_date, end_date=end_date)
     celue2 = 策略2(df_stock, HS300_信号, start_date=start_date, end_date=end_date)
