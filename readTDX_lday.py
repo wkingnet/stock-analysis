@@ -67,7 +67,7 @@ def update_lday():
     file_listsh = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] == "6")]
     file_listsz = tdx_stocks[0][tdx_stocks[0].apply(lambda x: x[0:1] != "6")]
 
-    print("处理深市股票")
+    print("从通达信深市股票导出数据")
     # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday')
     for f in tqdm(file_listsz):
         f = 'sz' + f + '.day'
@@ -75,7 +75,7 @@ def update_lday():
             # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
             func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', f, ucfg.tdx['csv_lday'])
 
-    print("处理沪市股票")
+    print("从通达信导出沪市股票数据")
     # file_list = os.listdir(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday')
     for f in tqdm(file_listsh):
         # 处理沪市sh6开头文件，否则跳过此次循环
@@ -84,7 +84,7 @@ def update_lday():
             # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + f)
             func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', f, ucfg.tdx['csv_lday'])
 
-    print("处理指数文件")
+    print("从通达信导出指数数据")
     for i in tqdm(ucfg.index_list):
         # print(time.strftime("[%H:%M:%S] 处理 ", time.localtime()) + i)
         if 'sh' in i:
@@ -112,7 +112,14 @@ def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
 
 
 if __name__ == '__main__':
-    print('附带命令行参数 readTDX_lday.py del 删除现有文件并重新生成完整数据')
+    if 'del' in str(sys.argv[1:]):
+        print('检测到参数del, 删除现有文件并重新生成完整数据')
+    else:
+        print('附带命令行参数 readTDX_lday.py del 删除现有文件并重新生成完整数据')
+    if 'single' in sys.argv[1:]:
+        print(f'检测到参数 single, 单进程执行')
+    else:
+        print(f'附带命令行参数 single 单进程执行(默认多进程)')
     # print('参数列表:', str(sys.argv[1:]))
     # print('脚本名:', str(sys.argv[0]))
 
@@ -127,21 +134,24 @@ if __name__ == '__main__':
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     cw_dict = func.readall_local_cwfile()
 
-    # 多进程
-    # print('Parent process %s' % os.getpid())
-    t_num = os.cpu_count()-2  # 进程数 读取CPU逻辑处理器个数
-    div, mod = int(len(file_list) / t_num), len(file_list) % t_num
-    freeze_support()  # for Windows support
-    tqdm.set_lock(RLock())  # for managing output contention
-    p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
-    for i in range(0, t_num):
-        if i + 1 != t_num:
-            # print(i, i * div, (i + 1) * div)
-            p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div], df_gbbq, cw_dict, i))
-        else:
-            # print(i, i * div, (i + 1) * div + mod)
-            p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div + mod], df_gbbq, cw_dict, i))
-    p.close()
-    p.join()
+    if 'single' in sys.argv[1:]:
+        qfq(file_list, df_gbbq, cw_dict)
+    else:
+        # 多进程
+        # print('Parent process %s' % os.getpid())
+        t_num = os.cpu_count()-2  # 进程数 读取CPU逻辑处理器个数
+        div, mod = int(len(file_list) / t_num), len(file_list) % t_num
+        freeze_support()  # for Windows support
+        tqdm.set_lock(RLock())  # for managing output contention
+        p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
+        for i in range(0, t_num):
+            if i + 1 != t_num:
+                # print(i, i * div, (i + 1) * div)
+                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div], df_gbbq, cw_dict, i))
+            else:
+                # print(i, i * div, (i + 1) * div + mod)
+                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div + mod], df_gbbq, cw_dict, i))
+        p.close()
+        p.join()
 
     print('日线数据全部处理完成')
