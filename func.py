@@ -555,7 +555,7 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     data['preclose'] = (data['close'].shift(1) * 10 - data['分红-前流通盘'] + data['配股-后总股本']
                         * data['配股价-前总股本']) / (10 + data['配股-后总股本'] + data['送转股-后流通盘'])
     # 计算每日复权因子 前复权最近一次股本变迁的复权因子为1
-    data['adj'] = (data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod()
+    data['adj'] = int((data['preclose'].shift(-1) / data['close']).fillna(1)[::-1].cumprod())
     data['open'] = data['open'] * data['adj']
     data['high'] = data['high'] * data['adj']
     data['low'] = data['low'] * data['adj']
@@ -759,7 +759,7 @@ def update_stockquote(code, df_history, df_today):
 
 
 if __name__ == '__main__':
-    stock_code = '000001'
+    stock_code = '600690'
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv',

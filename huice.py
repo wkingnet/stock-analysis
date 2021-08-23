@@ -16,10 +16,9 @@ from rich import print as rprint
 start_date = "2013-01-01"  # 回测起始日期
 end_date = "2022-12-31"  # 回测结束日期
 stock_money = 10000000  # 股票账户初始资金
-xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额
-xiadan_target_value = 100000  # 设定具体股票买入持有总金额
-# 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
-order_type = 'order_target_value'
+order_type = 'order_percent'  # 下单模式 买入总资产百分比的股票份额，或买入持有总金额的股票， 'order_percent' or 'order_target_value'
+xiadan_percent = 0.1  # 设定买入总资产百分比的股票份额 order_type = 'order_percent'时有效
+xiadan_target_value = 100000  # 设定具体股票买入持有总金额 order_type = 'order_target_value'时有效
 
 rq_result_filename = "rq_result/" + time.strftime("%Y-%m-%d_%H%M%S", time.localtime()) + "+" + "start_date" + str(start_date)
 rq_result_filename += "+" + order_type + "_" + (str(xiadan_percent) if order_type == 'order_percent' else str(xiadan_target_value))
