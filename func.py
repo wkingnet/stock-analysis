@@ -208,6 +208,7 @@ def historyfinancialreader(filepath):
         cw_info = list(struct.unpack(report_pack_format, info_data))
         cw_info.insert(0, code)
         results.append(cw_info)
+    cw_file.close()
     df = pd.DataFrame(results)
     return df
 
@@ -579,15 +580,15 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     e_date = '20990101'
     for cw_date in cw_dict:  # 遍历财报字典  cw_date=财报日期  cw_dict[cw_date]=具体的财报内容
         # 如果复权数据表的首行日期>当前要读取的财务报表日期，则表示此财务报表发布时股票还未上市，跳过此次循环。有例外情况：003001
-        # (cw_dict[cw_date][1] == code).any() 表示当前股票code在财务DF里有数据
+        # (cw_dict[cw_date][0] == code).any() 表示当前股票code在财务DF里有数据
         if df_ltg.index[0].strftime('%Y%m%d') <= cw_date <= df_ltg.index[-1].strftime('%Y%m%d') \
                 and len(cw_dict[cw_date]) > 0:
-            if (cw_dict[cw_date][1] == code).any():
+            if (cw_dict[cw_date][0] == code).any():
                 # 获取目前股票所在行的索引值，具有唯一性，所以直接[0]
-                code_df_index = cw_dict[cw_date][cw_dict[cw_date][1] == code].index.to_list()[0]
+                code_df_index = cw_dict[cw_date][cw_dict[cw_date][0] == code].index.to_list()[0]
                 # DF格式读取的财报，字段与财务说明文件的序号一一对应，如果是CSV读取的，字段需+1
-                # print(f'{cwfile_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
-                # f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
+                # print(f'{cw_date} 总股本:{cw_dict[cw_date].iat[code_df_index,238]}'
+                #  f'流通股本:{cw_dict[cw_date].iat[code_df_index,239]}')
                 # 如果流通股值是0，则进行下一次循环
                 if int(cw_dict[cw_date].iat[code_df_index, 239]) != 0:
                     #  df_ltg[cw_date:e_date].index[0] 表示df_ltg中从cw_date到e_date的第一个索引的值。
@@ -759,8 +760,8 @@ def update_stockquote(code, df_history, df_today):
 
 
 if __name__ == '__main__':
-    stock_code = '000001'
-    day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', 'sz' + stock_code + '.day', ucfg.tdx['csv_lday'])
+    stock_code = '600036'
+    day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', 'sh' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv',
                          index_col=None, encoding='gbk', dtype={'code': str})

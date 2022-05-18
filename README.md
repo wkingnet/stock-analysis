@@ -2,6 +2,9 @@
 
 项目无Wiki，此说明文档包含了项目所有相关内容。包括项目介绍、使用说明等。
 
+GitHub主站：https://github.com/wkingnet/stock-analysis
+Gitee镜像：https://gitee.com/wkingnet/stock-analysis
+
 ## 前言
 
 一切有为法，如梦幻泡影；如露亦如电，应作如是观。
