@@ -30,8 +30,10 @@ tdxpath = ucfg.tdx['tdx_path']
 starttime_str = time.strftime("%H:%M:%S", time.localtime())
 starttime = time.time()
 
-
 # 主程序开始
+# 目录不存在则创建
+os.mkdir(ucfg.tdx['csv_cw']) if not os.path.exists(ucfg.tdx['csv_cw']) else None
+
 # 本机专业财务文件和通达信服务器对比，检查更新
 
 # 下载通达信服务器文件校检信息txt

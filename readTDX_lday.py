@@ -24,7 +24,7 @@ import user_config as ucfg
 
 
 def check_files_exist():
-    # 判断目录和文件是否存在，存在则直接删除
+    # 判断目录和文件是否存在。不存在则创建，存在且运行带有del参数则删除。
     if os.path.exists(ucfg.tdx['csv_lday']) or os.path.exists(ucfg.tdx['csv_index']):
         # choose = input("文件已存在，输入 y 删除现有文件并重新生成完整数据，其他输入则附加最新日期数据: ")
         if 'del' in str(sys.argv[1:]):

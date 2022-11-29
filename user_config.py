@@ -9,7 +9,7 @@
 # 配置部分开始
 debug = False  # 是否开启调试日志输出  开=True  关=False
 
-# 目录需要事先手动建立好，不然程序会出错
+# 目录最好事先手动建立好，不然程序会出错
 tdx = {
     'tdx_path': 'd:/stock/通达信',  # 指定通达信目录
     'csv_lday': 'd:/TDXdata/lday_qfq',  # 指定csv格式日线数据保存目录
