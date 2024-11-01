@@ -75,7 +75,13 @@ for zipfile_filename in local_zipfile_list:
         tdx_zipfile_url = 'http://down.tdx.com.cn:8001/tdxfin/' + zipfile_filename
         many_thread_download.run(tdx_zipfile_url, local_zipfile_path)
         with zipfile.ZipFile(local_zipfile_path, 'r') as zipobj:  # 打开zip对象，释放zip文件。会自动覆盖原文件。
-            zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
+            try:
+                zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
+            except zipfile.BadZipFile:
+                os.remove(local_zipfile_path)  # 删除本机zip文件
+                print(f'文件{local_zipfile_path}下载损坏，或服务器端文件错误，跳过此文件')
+
+
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
         df = func.historyfinancialreader(local_datfile_path)
         csvpath = ucfg.tdx['csv_cw'] + os.sep + zipfile_filename[:-4] + ".pkl"
