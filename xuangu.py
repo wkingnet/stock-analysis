@@ -14,6 +14,7 @@ import func
 import user_config as ucfg
 
 # 配置部分
+
 start_date = ''
 end_date = ''
 
@@ -176,7 +177,11 @@ if __name__ == '__main__':
     if 'single' in sys.argv[1:]:
         stocklist = run_celue1(stocklist, df_today)
     else:
-        t_num = os.cpu_count() - 2  # 进程数 读取CPU逻辑处理器个数
+        # 进程数 读取CPU逻辑处理器个数
+        if os.cpu_count() > 8:
+            t_num = int(os.cpu_count() / 1.5)
+        else:
+            t_num = os.cpu_count() - 2
         freeze_support()  # for Windows support
         tqdm.set_lock(RLock())  # for managing output contention
         p = Pool(processes=t_num, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),))
