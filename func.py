@@ -452,6 +452,13 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
     if 'flag_newstock' not in dir():
         flag_newstock = False
 
+    # 取最一个交易日 date 值
+    last_date = df_code.iloc[-1]["date"]
+    df_gbbq["权息日"] = pd.to_datetime(df_gbbq["权息日"], format="%Y%m%d")
+    # 过滤掉最后一个交易日之后的除权除息数据（除权除息数据还未生效）
+    # 如002891在20250814进行10派2，但是在11至13日的通达信财务数据已经包含该条除权除息数据，造成20250814之前的复权数据不正确
+    df_gbbq = df_gbbq[df_gbbq["权息日"] <= last_date].copy()
+
     # 提取该股除权除息行保存到DF df_cqcx，提取其他信息行到df_gbbq
     df_cqcx = df_gbbq.loc[(df_gbbq['code'] == code) & (df_gbbq['类别'] == '除权除息')]
     df_gbbq = df_gbbq.loc[(df_gbbq['code'] == code) & (
@@ -475,11 +482,10 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
                     # 选择剩余的值，取反，则相当于保留了最大值，删除了其余的值
                     df_gbbq = df_gbbq[~df_gbbq['送转股-后流通盘'].isin(del_index)]
 
-    # int64类型储存的日期19910404，转换为dtype: datetime64[ns] 1991-04-04 为了按日期一一对应拼接
-    df_cqcx = df_cqcx.assign(date=pd.to_datetime(df_cqcx['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
+    df_cqcx["date"] = df_cqcx["权息日"]
     df_cqcx.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
     df_cqcx['category'] = 1.0  # 添加category列
-    df_gbbq = df_gbbq.assign(date=pd.to_datetime(df_gbbq['权息日'], format='%Y%m%d'))  # 添加date列，设置为datetime64[ns]格式
+    df_gbbq["date"] = df_gbbq["权息日"]
     df_gbbq.set_index('date', drop=True, inplace=True)  # 设置权息日为索引  (字符串表示的日期 "19910101")
     if len(df_cqcx) > 0:  # =0表示股本变迁中没有该股的除权除息信息。gbbq_lastest_date设置为今天，当作新股处理
         cqcx_lastest_date = df_cqcx.index[-1].strftime('%Y-%m-%d')  # 提取最新的除权除息日

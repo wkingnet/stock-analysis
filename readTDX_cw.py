@@ -54,7 +54,15 @@ for df_filename in tdx_txt_df['filename'].tolist():
         local_zipfile_path = ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw" + os.sep + df_filename
         many_thread_download.run(tdx_zipfile_url, local_zipfile_path)
         with zipfile.ZipFile(local_zipfile_path, 'r') as zipobj:  # 打开zip对象，释放zip文件。会自动覆盖原文件。
-            zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
+            try:
+                zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
+            except (zipfile.BadZipFile, zlib.error) as e:
+                if "zipobj" in locals():
+                    zipobj.close()
+                os.remove(local_zipfile_path)
+                print(f'文件{local_zipfile_path}下载损坏，或服务器端文件错误，跳过此文件')
+                continue
+
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
         df = func.historyfinancialreader(local_datfile_path)
         csvpath = ucfg.tdx['csv_cw'] + os.sep + df_filename[:-4] + ".pkl"
@@ -77,10 +85,12 @@ for zipfile_filename in local_zipfile_list:
         with zipfile.ZipFile(local_zipfile_path, 'r') as zipobj:  # 打开zip对象，释放zip文件。会自动覆盖原文件。
             try:
                 zipobj.extractall(ucfg.tdx['tdx_path'] + os.sep + "vipdoc" + os.sep + "cw")
-            except zipfile.BadZipFile:
+            except (zipfile.BadZipFile, zlib.error) as e:
+                if "zipobj" in locals():
+                    zipobj.close()
                 os.remove(local_zipfile_path)  # 删除本机zip文件
                 print(f'文件{local_zipfile_path}下载损坏，或服务器端文件错误，跳过此文件')
-
+                continue
 
         local_datfile_path = local_zipfile_path[:-4] + ".dat"
         df = func.historyfinancialreader(local_datfile_path)
