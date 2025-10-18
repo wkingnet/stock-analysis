@@ -14,6 +14,7 @@
 """
 import os
 import sys
+import re
 import time
 import pandas as pd
 import argparse
@@ -93,13 +94,13 @@ def update_lday():
             func.day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sz/lday', i, ucfg.tdx['csv_index'])
 
 
-def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None):
+def qfq(file_list, df_gbbq, cw_dict, tqdm_position=None, start_date="", end_date=""):
     tq = tqdm(file_list, leave=False, position=tqdm_position)
     for filename in tq:
         # process_info = f'[{(file_list.index(filename) + 1):>4}/{str(len(file_list))}] {filename}'
         df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index_col=None, encoding='gbk',
                              dtype={'code': str})
-        df_qfq = func.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict)
+        df_qfq = func.make_fq(filename[:-4], df_bfq, df_gbbq, cw_dict, start_date, end_date)
         # lefttime_tick = int((time.time() - starttime_tick) / (file_list.index(filename) + 1) * (len(file_list) - (file_list.index(filename) + 1)))
         if len(df_qfq) > 0:  # 返回值大于0，表示有更新
             df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + filename, index=False, encoding='gbk')
@@ -122,7 +123,18 @@ if __name__ == '__main__':
         print(f'附带命令行参数 single 单进程执行(默认多进程)')
     # print('参数列表:', str(sys.argv[1:]))
     # print('脚本名:', str(sys.argv[0]))
-
+    
+    start_date = ""
+    end_date = ""
+    dates = [
+        pd.to_datetime(d, format="%Y-%m-%d") for d in re.findall(r"\d{4}-\d{2}-\d{2}", str(sys.argv))
+    ]
+    if len(dates) == 1:
+        # 目前项目仅支持前复权，所以只有一个日期时，把该日期设为前复权的起始时间
+        # 前复权的起始时间等同日线的结束时间
+        end_date = dates[0].strftime("%Y-%m-%d")
+    elif len(dates) == 2:
+        start_date, end_date = min(dates).strftime("%Y-%m-%d"), max(dates).strftime("%Y-%m-%d")
     # 主程序开始
     check_files_exist()
     update_lday()
@@ -135,7 +147,7 @@ if __name__ == '__main__':
     cw_dict = func.readall_local_cwfile()
 
     if 'single' in sys.argv[1:]:
-        qfq(file_list, df_gbbq, cw_dict)
+        qfq(file_list, df_gbbq, cw_dict, None, start_date, end_date)
     else:
         # 多进程
         # print('Parent process %s' % os.getpid())
@@ -152,10 +164,10 @@ if __name__ == '__main__':
         for i in range(0, t_num):
             if i + 1 != t_num:
                 # print(i, i * div, (i + 1) * div)
-                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div], df_gbbq, cw_dict, i))
+                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div], df_gbbq, cw_dict, i, start_date, end_date))
             else:
                 # print(i, i * div, (i + 1) * div + mod)
-                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div + mod], df_gbbq, cw_dict, i))
+                p.apply_async(qfq, args=(file_list[i * div:(i + 1) * div + mod], df_gbbq, cw_dict, i, start_date, end_date))
         p.close()
         p.join()
 

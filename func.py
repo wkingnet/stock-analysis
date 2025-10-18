@@ -454,6 +454,11 @@ def make_fq(code, df_code, df_gbbq, df_cw='', start_date='', end_date='', fqtype
 
     # 取最一个交易日 date 值
     last_date = df_code.iloc[-1]["date"]
+    # 前复权，截取的截止日期早于日线的结束日期，权息日结束日期要做相应调整，避免使用未来数据。
+    if fqtype == "qfq":
+        if end_date and pd.to_datetime(end_date) < pd.to_datetime(last_date):
+            last_date = end_date
+            
     df_gbbq["权息日"] = pd.to_datetime(df_gbbq["权息日"], format="%Y%m%d")
     # 过滤掉最后一个交易日之后的除权除息数据（除权除息数据还未生效）
     # 如002891在20250814进行10派2，但是在11至13日的通达信财务数据已经包含该条除权除息数据，造成20250814之前的复权数据不正确
@@ -767,10 +772,12 @@ def update_stockquote(code, df_history, df_today):
 
 if __name__ == '__main__':
     stock_code = '600036'
+    start_date = ""
+    end_date = ""
     day2csv(ucfg.tdx['tdx_path'] + '/vipdoc/sh/lday', 'sh' + stock_code + '.day', ucfg.tdx['csv_lday'])
     df_gbbq = pd.read_csv(ucfg.tdx['csv_gbbq'] + '/gbbq.csv', encoding='gbk', dtype={'code': str})
     df_bfq = pd.read_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv',
                          index_col=None, encoding='gbk', dtype={'code': str})
-    df_qfq = make_fq(stock_code, df_bfq, df_gbbq)
+    df_qfq = make_fq(stock_code, df_bfq, df_gbbq, "", start_date, end_date)
     if len(df_qfq) > 0:
         df_qfq.to_csv(ucfg.tdx['csv_lday'] + os.sep + stock_code + '.csv', index=False, encoding='gbk')
